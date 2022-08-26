@@ -1,0 +1,345 @@
+
+## CloudFormation 部署 Lambda 函数
+
+=== 架构图
+
+image::/图片2/119图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 创建 S3 存储桶并公开
+
+> - 菜单**导航到S3**，**创建S3存储桶**
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域。
+> - 顶部菜单**导航到 S3**
+
+image::/图片/09图片/导航到S3.png[导航到S3]
+
+> - 在 S3 页面上，单击**``创建存储桶``**并**填写存储桶详细信息**。
+> - 桶名称：输入**``cloudformation-s3-lambda``**
+> * 注意： S3 存储桶名称是**全局唯一**的，请**选择一个可用的名称**。
+> - AWS 区域：选择**美国东部（弗吉尼亚北部）美国东部-1**
+> - 对于对象所有权：选择**``ACL 已启用``**
+> * 对象所有权：选择**``对象编写者``**
+> - 对于此存储桶的**“阻止公有访问”**设置部分
+> * **取消选中**"阻止所有公共访问"选项，然后**选中确认**选项。
+> - 将**其他设置保留**为默认值。
+> - **创建存储桶按钮**
+> - S3 **存储桶已创建**。
+
+---
+
+=== 配置S3存储桶策略使其公开
+
+> - 单击**``权限``**选项卡，然后**配置以下内容**
+> * 向下滚动到**存储桶策略**，单击右侧的**编辑**按钮。
+> * 此时将显示一个空白的**存储桶策略编辑器**。
+> * 将存储桶的 ARN 复制到**剪贴板**。
+> * 例如**``arn:aws:s3:::cloudformation-s3-lambda``**
+> - 复制下方**整个策略**，将其粘贴到存储桶策略中，
+> - 下面 JSON 中的 ``Resource`` **改为自己的存储桶ARN**
+
+```json
+{
+    "Version": "2012-10-17",
+    "Id": "MYBUCKETPOLICY",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::cloudformation-s3-lambda/*"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::cloudformation-s3-lambda/*"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "s3:DeleteBucket",
+            "Resource": "arn:aws:s3:::cloudformation-s3-lambda"
+        }
+    ]
+}
+```
+
+> - 点击**``保存更改``**按钮。
+> - 现在已**通过修改存储桶策略**的方式使S3存储桶**公开**
+
+---
+
+=== 将文件上传到 S3 存储桶
+
+> - **单击**存储桶名称**``cloudformation-s3-lambda``**。
+> - 在对象中，您可以看到**以下消息**
+> * 此存储桶中**没有任何对象**。
+
+image::/图片/41图片/没有对象.png[没有对象]
+
+> - 您需要从本地计算机上传**本实验所需文件**
+
+==== **``本实验所需文件``**位于此仓库**附件目录**
+
+> - 将文件**上传到我们的 S3 存储桶**
+> * 点击**上传**按钮。
+> * 点击**添加文件**按钮。
+> * 浏览您的本地文件**并选择它**
+> * 单击上传按钮**上传**。
+> - 您可以从屏幕顶部的传输面板中**查看上传进度**。
+> - 上传文件后，它将**显示在存储桶中**。
+
+---
+
+=== 创建 IAM 角色
+
+> - 导航到**``IAM``**
+> - 在**左侧菜单**中，单击**``角色``** 。单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+> - 在**创建角色**部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Lambda**
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色2]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。
+> - 选择**"创建策略"**，将**打开一个新选项卡**，然后将**代码复制并粘贴到 JSON 下**。
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "p1",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:Describe*",
+                "ec2:CreateKeyPair",
+                "ec2:StartInstances",
+                "ec2:StopInstances",
+                "ec2:RunInstances",
+                "ec2:CreateVolume",
+                "ec2:TerminateInstances",
+                "ec2:CreateTags",
+                "ec2:AssociateAddress",
+                "ec2:ReportInstanceStatus",
+                "ec2:DeleteVolume",
+                "ec2:ModifyVolume",
+                "ec2:AttachVolume",
+                "ec2:DetachVolume",
+                "ec2:DeleteKeyPair",
+                "ec2:CreateSecurityGroup",
+                "cloudwatch:Describe*",
+                "cloudwatch:Get*",
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestedRegion": "us-east-1"
+                }
+            }
+        },
+        {
+            "Sid": "p2",
+            "Effect": "Allow",
+            "Action": "ec2:RunInstances",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "ec2:InstanceType": "t2.micro"
+                }
+            }
+        },
+        {
+            "Sid": "p3",
+            "Effect": "Allow",
+            "Action": [
+                "s3:Get*",
+                "s3:List*",
+                "s3:PutObject",
+                "s3:PutBucketOwnershipControls",
+                "s3:CreateBucket"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+> - 现在点击 **下一页：标签** 按钮。**无需更改**
+> - 单击**"下一步：查看"**按钮。
+> - 输入策略名称：**cfpolicy**，然后单击**"创建策略"**。
+> - 创建策略后，返回**"创建角色"**选项卡，然后单击右上角的**"刷新"**按钮。
+> - 在"筛选策略"部分中**搜索"cfpolicy"**并将其**选中**。
+> - 单击**下一步**
+> - 角色名称：输入 **``CFrole``**
+> - 您**已成功**按名称 CFrole 创建了一个 IAM 角色。
+
+---
+
+=== 复制模板创建S3 存储桶堆栈模板
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``s3_bucket.json``**
+
+==== 注意：将 **``S3Bucket``** 和 **``角色 ARN``** 替换为**我们创建的S3存储桶名称和 IAM角色 ARN**
+
+```json
+{
+    "Resources": {
+        "awss3bucket": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Code": {
+					"S3Bucket": "cloudformation-s3-lambda",
+					"S3Key": "lambda_function.zip"
+				},
+				"Role": { "Fn::Sub": "arn:aws:iam::254259720380:role/CFrole"},
+                "Timeout": 60,
+                "Handler": "lambda_function.lambda_handler",
+                "Runtime": "python3.9",
+                "MemorySize": 128            
+            }
+        }
+    }
+}
+```
+
+> - CloudFormation 模板中提供的一些**重要详细信息**
+> * **资源**
+> ** awss3bucket→用于**创建 s3 堆栈的资源名称**
+> ** 类型→模板**将使用的服务**（在本例中，它是 AWS Lambda）
+> ** 代码→它**包含 Lambda 代码的位置**。
+> *** S3 存储桶→**包含 Lambda 代码所在的存储桶的名称**
+> *** S3 Key→**包含 Lambda 函数的名称**（这将是一个 zip 文件）
+> ** 角色→包含用于**创建堆栈的角色的 ARN**
+> ** 超时→**超时值（以秒为单位）**
+> ** 处理程序→**处理程序的名称**
+> ** 运行时→**运行时的名称**。
+> ** 内存大小→**内存大小（MB）**
+
+---
+
+=== 复制模板创建EC2 堆栈模板
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``ec2_instance.json``**
+
+==== 注意：将 **``S3Bucket``** 和 **``角色 ARN``** 替换为**我们创建的S3存储桶名称和 IAM角色 ARN**
+
+
+```json
+{
+    "Resources": {
+        "awsec2instance": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Code": {
+					"S3Bucket": "cloudformation-s3-lambda",
+					"S3Key": "ec2_function.zip"
+				},
+				"Role": { "Fn::Sub": "arn:aws:iam::254259720380:role/CFrole"},
+                "Timeout": 60,
+                "Handler": "ec2_function.lambda_handler",
+                "Runtime": "python3.9",
+                "MemorySize": 128            
+            }
+        }
+    }
+}
+```
+
+> - CloudFormation 模板中提供的一些**重要详细信息**
+> * **资源**
+> ** awsec2instance→用于**创建 ec2 堆栈的资源名称**
+> ** 类型→模板**将使用的服务**（在本例中，它是 AWS Lambda）
+> ** 代码→它**包含 Lambda 代码的位置**。
+> *** S3 存储桶→**包含 Lambda 代码所在的存储桶的名称**
+> *** S3 Key→**包含 Lambda 函数的名称**（这将是一个 zip 文件）
+> ** 角色→包含用于**创建堆栈的角色的 ARN**
+> ** 超时→**超时值（以秒为单位）**
+> ** 处理程序→**处理程序的名称**
+> ** 运行时→**运行时的名称**。
+> ** 内存大小→**内存大小（MB）**
+
+---
+
+
+=== 创建 S3 堆栈并测试 Lambda 函数
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``上传模板文件``**
+> ** 点击**选择文件**按钮，在本地计算机中**选择本实验对应的 ``s3_bucket.json``进行上传**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``awslabs-s3-stack``**
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，并点击**创建堆栈**按钮
+> * 注意：请**等待 CloudFormation 创建资源完成**
+
+image::/图片2/119图片/CloudFormation.png[CloudFormation]
+
+> - 转到菜单，然后单击 **Lambda**。
+> - 在 Lambda 控制面板中，单击**“函数”**，然后找到名为** ``awslabs-s3-stack`` 的函数**
+> - **单击名为 ``awslabs-s3-stack`` 的 Lambda 函数**，然后向下滚动到**代码源部分**。找到**带有“k6-bucket”**的行，并**将存储桶名称更改为您选择的存储桶名称**。单击**“部署”**。
+> * 注意：S3 存储桶名称**必须是全局唯一的**。
+
+image::/图片2/119图片/S3.png[S3]
+
+> - 单击**"测试"**按钮，"事件名称"：输入**``test1``**，然后单击**保存**按钮。
+> - 再次单击**"测试"**按钮。
+> - 现在，在 Lambda **执行结果为成功**。
+> - 执行成功后，转到**“S3”**，然后**检查您在函数代码中提供的存储桶名称是否已创建**。
+
+image::/图片2/119图片/检查S3.png[检查S3]
+
+---
+
+=== 创建 EC2 堆栈并测试 Lambda 函数
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``上传模板文件``**
+> ** 点击**选择文件**按钮，在本地计算机中**选择本实验对应的 ``ec2_instance.json``进行上传**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``awslabs-ec2-stack``**
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，并点击**创建堆栈**按钮
+> * 注意：请**等待 CloudFormation 创建资源完成**
+
+image::/图片2/119图片/CloudFormation2.png[CloudFormation2]
+
+> - 转到菜单，然后单击 **Lambda**。
+> - 在 Lambda 控制面板中，单击**“函数”**，然后找到名为**``awslabs-ec2-stack`` 的函数**
+> - **单击名为 ``awslabs-ec2-stack`` 的 Lambda 函数**，然后向下滚动到**代码源部分**。
+> - 单击**"测试"**按钮，"事件名称"：输入**``test2``**，然后单击**保存**按钮。
+> - 再次单击**"测试"**按钮。
+> - 现在，在 Lambda **执行结果为成功**。
+> - 执行成功后，转到**“EC2”**，然后**检查Lambda函数为您创建的EC2实例**。
+
+image::/图片2/119图片/检查EC2.png[检查EC2]
+
+---

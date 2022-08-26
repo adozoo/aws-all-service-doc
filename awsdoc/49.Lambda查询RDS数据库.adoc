@@ -1,0 +1,250 @@
+
+## Lambda查询RDS数据库
+
+=== 架构图
+
+image::/图片/49图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 为 RDS 实例创建安全组
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 EC2**
+> - 左侧面板，单击**"网络和安全"**，然后单击**"创建安全组"**。
+> - 安全组名称：输入**RDS_lab_sg**
+> - 描述：**Security group for RDS**
+> - VPC：选择**默认VPC**
+> - 在**"入站规则"**下，单击**"添加规则"**。
+> - 添加 **MYSQL/Aurora**
+
+----
+  . 选择类型： 选择 MYSQL/Aurora
+  . 协议：TCP
+  . 端口范围：3306
+  . 源：选择"任何位置"
+----
+
+> - 将其他内容**保留为默认值**，然后单击**创建安全组按钮**。
+> - 现**已创建安全组**。
+
+---
+
+=== 创建 IAM 角色
+
+> - 导航到``IAM``
+> - 在**左侧菜单**中，单击``角色`` 。单击``创建角色``该按钮以**创建新的 IAM 角色**。
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Lambda**
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色2]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。按名称**AWSLambdaVPCAccessExecutionRole**搜索权限，然后单击``AWSLambdaVPCAccessExecutionRole``。
+> - 单击**下一步**
+> - 角色名称：输入 **Lambda_RDS_Role**
+> - 您**已成功**按名称 Lambda_RDS_Role 创建了一个 IAM 角色。
+> * 注意：您可以使用**其他名称创建角色**，然后将其**附加到 Lambda 函数**
+
+---
+
+=== 创建 RDS 数据库实例
+
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 通过菜单**导航到 RDS**。
+> - 单击**"数据库"**部分中的**"创建数据库"**按钮。
+> - 指定数据库**详细信息**：
+> * 实例**规格**
+> ** 数据库创建方法：**标准创建**
+> ** 引擎选项：选择 **MySQL**
+> ** 版本 ： **默认**
+> ** 模板 ：选择**免费套餐**
+> ** 数据库实例标识符：**mydatabaseinstance**
+> ** 主用户名：**mydatabaseuser**
+> ** 主密码和确认密码：**mydatabasepassword**
+> ** 注意：这是用于登录数据库的用户名/密码组合。请记下它们。
+> ** 数据库实例类 ： **db.t2.micro — 1 个 vCPU，1 GiB RAM**
+> ** 存储类型 ： **通用型 （SSD）**
+> ** 分配的存储：**20（默认值）**
+> ** 启用存储空间自动缩放：**取消选中**
+> ** 公共访问 ： 选择**是**
+> ** VPC 安全组： 选择**现有**
+> ** 安全组注意：**删除默认安全组**，然后**选择RDS_lab_sg**
+
+image::/图片/47图片/rds安全组.png[rds安全组]
+
+> - 转到**其他配置**选项
+> * 初始数据库名称：**mydatabase**
+> * 数据库参数组：**默认**
+> * 选项组：**默认**
+> * 启用自动备份：**取消选中**
+> * 日志导出：本练习**不需要日志导出**。
+> * 注意：将**其他所有设置保留为默认值**
+> - 单击**"创建数据库"**
+> - 导航到**"数据库"**。
+> - 在 RDS 控制台上，将**显示新数据库实例的详细信息**。数据库实例的状态为**"正在创建"**，直到数据库实例**可供使用**。
+> - 当状态更改为可用时，您**可以连接到数据库实例**。新实例状态变为**"可用"**之前最多可能**需要 20 分钟**。
+
+image::/图片/47图片/数据库创建完成.png[数据库创建完成]
+
+---
+
+=== 使用 MySQL 工具连接到数据库实例上的 RDS 数据库
+
+> - 使用 MySQL 图形化连接工具**连接到数据库实例上的数据库**，请**查找数据库实例的终端节点（DNS 名称）和端口号**。
+> - 导航到并单击**"mydatabaseinstance"**。
+> - 在**"连接和安全"**部分下，**复制并记下终端节点和端口**。
+> * 终端节点：**复制终端节点**
+> * 端口：**3306**
+> * 您需要**终端节点**和**端口号**才能**连接到数据库实例**。
+> - 打开 MySQL 图形化**连接工具**。单击**加号图标**
+
+==== 本机情况
+
+> - 连接名称：输入示例名称 **MyDatabseConnection**
+> - 主机名：**已复制的终端节点**
+> - 端口： **3306**
+> - 用户名： **mydatabaseuser**
+> - 密码： **mydatabasepassword**
+
+image::/图片/47图片/连接信息.png[连接信息]
+
+> - 单击**"测试连接"**以**确保能够正确连接到数据库**。
+
+image::/图片/47图片/测试成功.png[测试成功]
+
+> - 单击**"保存"**以**保存连接**。
+> - 成功连接并**打开数据库后**，**可以创建表并对连接的数据库执行各种查询**。
+
+image::/图片/47图片/成功.png[成功]
+
+
+> - 现在**复制下面的MySQL命令**并将其**粘贴**到**"查询"选项卡**中。
+
+```sql
+  CREATE DATABASE StudentDB;
+  Use StudentDB;
+  CREATE TABLE students (
+  studentId INT AUTO_INCREMENT,
+  studentName VARCHAR(50) NOT NULL,
+  Course VARCHAR(55),Semester VARCHAR(50) NOT NULL,PRIMARY KEY (studentId));
+  INSERT INTO students(studentName, Course, Semester) VALUES ('Paul', 'MBA', 'Second');
+  INSERT INTO students(studentName, Course, Semester) VALUES ('John', 'IT', 'Third');
+  INSERT INTO students(studentName, Course, Semester) VALUES ('Sebastian', 'Medicine', 'fifth');
+  SELECT * FROM students;
+```
+
+image::/图片/49图片/第一次sql.png[第一次sql]
+
+
+> - MySQL **查询说明** ：
+> * **创建数据库学生数据库**。（创建数据库学生数据库;）
+> * **选择数据库**（使用学生数据库;）
+> * **创建一个学生表格** - 学生 ID、stunentName、课程和学期。
+> * 向表中**插入三个值**。
+> * **查看表数据**。
+> - 现在，单击**运行图标**开始**执行**
+> - 稍等，您将能够**看到具有以下值的学生表**。
+
+image::/图片/49图片/查询第一次.png[查询第一次]
+
+
+> - **不要关闭MySQL工具窗口**，请将其**保持在最小化状态**。
+
+---
+
+=== 创建 Lambda 函数
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 转到菜单，然后单击 **Lambda**。
+
+image::/图片/09图片/导航到Lambda.png[导航到Lambda]
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``MyRDSLambda``**
+> - 运行时：**Python 3.9**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择**``Lambda_RDS_Role``**
+> - 点击**创建函数**该按钮。
+> - 配置页面：在此页面上，我们需要**配置我们的 python 函数**。
+> - 向下滚动，可以看到**"代码源"**部分。
+> - **删除 lambda_function.py 中的现有代码**。
+> - 单击**"上传自"**按钮，然后选择**本实验的的Zip文件**，然后单击**"保存"**按钮。
+
+==== 本实验的的Zip文件位于附件目录
+
+> - 转到第 5 行，将 python 代码中的**终端节点**、**用户名**和**密码**替换为您的值，然后单击**"部署"**按钮。
+
+image::/图片/49图片/第一次py.png[第一次py]
+
+
+> - Lambda **代码说明**：
+> * zip文件包含**预安装的python模块**，用于**在Python中执行MySQL查询**。
+> * 首先，我们**提供 RDS 终端节点**、**用户名、密码和数据库**。
+> * **创建与 RDS 实例的连接**。
+> * 执行MySQL查询**"SELECT * FROM STUDENTS"**以**获取表数据**。
+> * **创建一个 json 值并在 lambda 函数中打印表数据**。
+> - 现在点击**测试按钮**
+> * 事件名称：输入**TestRDS**
+> * 将**其他内容保留为默认值**
+> * 单击**创建按钮**。
+> - 现在再次单击**"测试"**按钮，您将能够在 Lambda 输出 （JSON） 中**看到学生表值**。
+
+image::/图片/49图片/py结果1.png[py结果1]
+
+> - **向下滚动（字符串）**
+
+image::/图片/49图片/py结果2.png[py结果2]
+
+> - 转到**"lambda_function.py"**
+> - 将**现有代码替换为以下内容**：
+> - 在第 3 行中，将 python 代码中的**终端节点**、**用户名**和**密码**替换为您的值，然后单击**"部署"**按钮。
+
+```py
+  import json
+  import pymysql
+  RDS_endpoint = "myrdsinstance.cdegnvsebaim.us-east-1.rds.amazonaws.com"
+  UserName = "mydatabaseuser"
+  Password = "mydatabasepassword"
+  DatabaseName = "StudentDB"
+  connectionString = pymysql.connect(RDS_endpoint, user= UserName, passwd= Password, db= DatabaseName)
+  def lambda_handler(event, context):
+      header = []
+      row_json = []
+      table_json = {}
+      pointer = connectionString.cursor()
+      pointer.execute("INSERT INTO students(studentName, Course, Semester) VALUES ('Elizabeth', 'Art', 'first')")
+      connectionString.commit()
+      connectionString.close()
+      return("Insertion Success")
+```
+
+> - Lambda **代码说明**：
+> * 此代码用于将**值插入到 students 表中**。
+> * 首先，我们**提供 RDS 终端节点、用户名、密码和数据库值**。
+> * **创建与 RDS 实例的连接**。
+> * 执行**MySQL查询``INSERT INTO students（studentName，Course，Semester）VALUES（'Elizabeth'，'Art'，'first'）``**以**将值插入到表中**。
+> - 单击**测试**按钮，您将在 **lambda 响应中收到插入成功**消息。
+
+image::/图片/49图片/插入成功.png[插入成功]
+
+
+> - 现在**导航到MySQL工具应用程序**，并将**现有查询替换为以下内容**。
+
+
+----
+  Use StudentDB;
+  SELECT * FROM students;
+----
+
+image::/图片/49图片/第二次sql.png[第二次sql]
+
+> - 现在，单击**运行图标开始执行**
+> - 稍等，您将**能够看到我们刚刚通过 Lambda 函数添加到表中的新行**。
+
+image::/图片/49图片/查询第二次.png[查询第二次]
+
+---

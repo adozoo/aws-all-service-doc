@@ -1,0 +1,238 @@
+
+
+## EC2上使用多个IP
+
+=== 什么是弹性网络接口 （ENI）？
+
+> - 网络接口是**虚拟机的网卡**，多个 ENI 可以**附加到单个 EC2 实例**。
+> - 默认情况下，它会为您**提供私有 IPv4 地址**，您可以选择为公有 IPv4 地址**附加弹性 IP**。
+> - 将 ENI 附加到 EC2 实例时，请确保将您的 EC2 实例与 ENI 位于**同一子网**中。
+> - 您需要为与网络接口关联但网络接口**未附加到正在运行的实例**的弹性 IP 地址**付费**。
+> - 您可以在 EC2 实例上**附加和分离** **辅助接口** （eth1-ethn），但**不能分离 eth0 接口**。
+
+---
+
+=== 架构图
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E6%9E%B6%E6%9E%84%E5%9B%BE.png[架构图]
+
+=== 实验步骤
+
+==== (1)为 EC2 实例创建安全组
+
+> - 左侧面板菜单中，选择"网络和安全"下的安全组
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%AF%BC%E8%88%AA%E5%88%B0%E5%AE%89%E5%85%A8%E7%BB%84.png[安全组11111]
+
+
+> - 单击``创建安全组``该按钮
+> - 我们将为 EC2 实例创建一个安全组。
+
+----
+  . 安全组名称：输入 EC2-Instance
+  . 描述：输入 Security group for EC2 Instance
+  . VPC：选择默认VPC
+  . 单击"入站规则"下的按钮。
+  . 类型 ： 选择 HTTP
+  . 来源 ： 选择任何位置
+  . 其他保留为默认值，然后单击按钮。
+----
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/EC2%E5%AE%89%E5%85%A8%E7%BB%84.png[实例创建一个安全组]
+
+==== 然后单击``创建安全组``按钮
+
+==== (2)为弹性网络接口创建安全组
+
+> - 导航到左侧面板菜单中，选择"网络和安全"下的安全组
+> - 单击``创建安全组``该按钮
+> - 我们将为 弹性网络接口 创建一个安全组。
+
+----
+  . 安全组名称：输入  Network-Interface-SG
+  . 描述：输入 Security group for secondary ENI
+  . VPC：选择默认VPC
+  . 单击"入站规则"下的按钮。
+  . 类型 ： 选择 HTTP
+  . 来源 ： 选择任何位置
+  . 其他保留为默认值，然后单击按钮。
+----
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/ENI%E5%AE%89%E5%85%A8%E7%BB%84.png[创建一个安全组]
+
+==== 然后单击``创建安全组``按钮。
+
+==== (3)控制台启动实例
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E6%8E%A7%E5%88%B6%E5%8F%B02.png[控制台启动实例]
+
+==== (4)选择系统镜像
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E6%8E%A7%E5%88%B6%E5%8F%B03.png[选择系统镜像]
+
+==== (5)选择实例类型
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE1.png[选择实例类型]
+
+==== (6)配置实例
+
+> - 实例的数量：**选择 1**
+> - 高级详细信息
+> - 用户数据：以文本形式
+
+```shell
+  #!/bin/bash
+  sudo su
+  yum update -y
+  yum install httpd -y
+  echo "<html><h1> Welcome to AWS </h1><html>" >> /var/www/html/index.html
+  systemctl start httpd
+  systemctl enable httpd
+```
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE%E5%AE%9E%E4%BE%8B.png[配置实例]
+
+> - 点击下一步 `添加储存`
+
+==== (5)添加存储
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE2.png[添加存储]
+
+==== (6)添加标签
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE3.png[添加标签]
+
+==== (5) 配置安全组
+
+> - 单击"选择一个现有的安全组"，选择"EC2-Instance"
+> - 注意：忽略``未打开 SSH 端口的警告``。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE%E5%AE%89%E5%85%A8%E7%BB%84%E5%BF%BD%E7%95%A5SSH%E8%AD%A6%E5%91%8A.png[配置安全组]
+
+==== (6) 审核启动
+
+> - 密钥对：选择"在没有密钥对的情况下继续"，然后选中复选框进行确认
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E6%97%A0%E5%AF%86%E9%92%A5%E5%90%AF%E5%8A%A8.png[密钥对]
+
+---
+
+=== 准备
+
+> - **复制EC2实例的可用区和子网 ID，我们将在后续步骤中用到它们**
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%87%86%E5%A4%87.png[准备]
+
+---
+
+=== 创建弹性网络接口并将其附加到 EC2 实例
+
+> - 单击**左侧边栏**中"网络和安全"类别下的**网络接口**
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%AF%BC%E8%88%AA%E5%88%B0%E7%BD%91%E7%BB%9C%E6%8E%A5%E5%8F%A3.png[导航到网络接口]
+
+> - 默认情况下，将**存在一个网络接口**
+> - 单击``创建网络接口``按钮以**创建网络接口**
+> - 填写详细信息，如下所示
+
+----
+  . 描述： Secondary ENI
+  . 子网：选择刚刚复制的EC2实例所在的可用区和子网 ID
+  . 专用 IPv4 地址：选择"自动分配"
+  . 弹性结构适配器：未选中
+  . 安全组：选择``Network-Interface-SG``
+  . 标签：点击添加新标签按钮。
+  . 输入"Name "作为"键"，将"Secondary"作为"值"。
+----
+
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%88%9B%E5%BB%BAENI.png[创建网络接口]
+
+
+
+> - 完成后，单击``创建网络接口``按钮
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/ENI%E5%88%9B%E5%BB%BA%E5%AE%8C%E6%88%90.png[创建完成]
+
+> - 现在，将**网络接口**与 **EC2 实例**附加
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/ENI%E9%99%84%E5%8A%A0EC2.png[附加1]
+
+
+----
+  . 选择刚刚创建的网络接口，即Secondary。
+  . 单击右上角的"操作"按钮。
+  . 从下拉菜单中选择附加。
+  . 在弹出窗口中，选择刚刚创建的 EC2 实例，然后单击附加按钮。
+----
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/ENI%E9%99%84%E5%8A%A0EC22.png[附加EC2]
+
+
+> - Secondary网络接口现在已与 EC2 实例**连接**。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/ENI%E9%99%84%E5%8A%A0%E6%88%90%E5%8A%9F.png[附加成功]
+
+---
+
+=== 分配弹性 IP 地址
+
+> - 要使用弹性 IP 地址，您需要为您的账户**分配**一个，然后将其与您的实例或**网络接口关联**。
+> - 导航到**左侧边栏**中"网络和安全"类别下的**弹性 IP**
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%AF%BC%E8%88%AA%E5%88%B0%E5%BC%B9%E6%80%A7IP.png[分配弹性]
+
+> - 点击``分配弹性 IP 地址``按钮
+> - 直接单击"分配"，无需进行任何更改。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%88%86%E9%85%8D%E5%BC%B9%E6%80%A7IP.png[点击]
+
+> - 您可以看到弹性 IP 已成功分配，如下所示。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%BC%B9%E6%80%A7IP%E5%88%86%E9%85%8D%E6%88%90%E5%8A%9F.png[已成功分配]
+
+---
+
+=== 将弹性 IP 地址与弹性网卡关联
+
+> - **选择创建的弹性 IP 地址**，然后单击``操作``。选择"关联弹性 IP 地址"选项
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%85%B3%E8%81%94%E5%BC%B9%E6%80%A7IP.png[地址与弹性网卡关联]
+
+> - **关联弹性 IP 地址**
+
+----
+  . 资源类型：选择网络接口
+  . 网络接口：选择"Secondary"
+  . 私有 IP 地址：下拉菜单选择存在的 IP 地址
+----
+
+> - 单击"关联"按钮。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%85%B3%E8%81%94%E5%BC%B9%E6%80%A7IP2.png[关联]
+
+> - 现在，您可以看到网络接口与弹性 IP 地址**相关联**。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E5%85%B3%E8%81%94%E5%BC%B9%E6%80%A7IP%E6%88%90%E5%8A%9F.png[弹性IP成功]
+
+> - 转到 EC2 实例，刷新整个浏览器选项卡
+> - 我们可以看到分配给同一 EC2 实例的 IPv4 公有 IP 和弹性 IP 地址。单个 EC2 实例有多个公有 IP。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E6%9F%A5%E7%9C%8BEC2%E5%85%AC%E6%9C%89IP.png[多个公有 IP]
+
+---
+
+
+=== 测试实例的公有 IP 地址
+
+
+> - 分别将EC2 实例的**公有 IPv4 地址**粘贴到浏览器中**访问**
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E8%AE%BF%E9%97%AE%E5%85%AC%E6%9C%89IP.png[访问1]
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/06%E5%9B%BE%E7%89%87/%E8%AE%BF%E9%97%AE%E5%85%AC%E6%9C%89IP2.png[访问2]
+
+在此实验中，您**拥有**一个 EC2 实例并且拥有**两个公有 IP**。
+
+---
+

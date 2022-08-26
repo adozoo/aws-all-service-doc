@@ -1,0 +1,408 @@
+
+## CloudFormation嵌套堆栈
+
+=== 嵌套堆栈
+
+> - **顾名思义**，嵌套堆栈由**一个或多个**相互引用的**堆栈组成**。
+> - 随着**基础设施的扩展**，可能**需要多次使用特定的 CloudFormation 模板**。
+> - 在这种情况下，我们**隔离一个公共模板**，并**根据需要**从**嵌套堆栈中引用它**。
+> - 嵌套堆栈本身由**引用层次结构中的一个或多个堆栈组成**。
+> - 嵌套堆栈将**具有一个具有一个或多个子堆栈的父堆栈**。
+
+=== 架构图
+
+image::/图片2/118图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 复制模板创建负载均衡器的模板文件
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``Nested_LB.yaml``**
+
+```yaml
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS CloudFormation Sample Template for creating LoadBalancer
+Resources:
+  ElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      SecurityGroups:
+        - Fn::GetAtt: [ Elbsg, GroupId ]
+      AvailabilityZones: !GetAZs ''
+      CrossZone: 'true'
+      Listeners:
+      - LoadBalancerPort: '80'
+        InstancePort: '80'
+        Protocol: HTTP
+      HealthCheck:
+        Target: TCP:80
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+      ConnectionDrainingPolicy:
+        Enabled: 'true'
+        Timeout: '300'  
+      Tags:
+        - Key: Name 
+          Value: ELB_Nested
+  Elbsg:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupName: ELB-sg
+      GroupDescription: Security group for Load balancer
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: '80'
+          IpProtocol: tcp
+          ToPort: '80'
+      Tags:
+        - Key: Name 
+          Value: ELB_SG
+Outputs:
+  LoadBalancerName:
+    Value:
+      Ref: ElasticLoadBalancer
+    Description: Name of ElasticLoadBalancer
+```
+
+> - CloudFormation 模板中提供的一些**重要详细信息**，用于**创建负载均衡器**。
+> * **资源**
+> ** ElasticLoadBalancer： 用于**创建负载均衡器的资源名称**。
+> ** Elbsg： 用于为**负载均衡器创建安全组的资源名称**。
+> ** 输出： **输出获取负载均衡器的名称**，以便在**“自动拓展”**组中**引用负载均衡器**。
+
+---
+
+
+=== 复制模板创建自动拓展组的模板文件
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``Nested_ASG.yaml``**
+
+```yaml
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS CloudFormation Sample Template for creating EC2 instance
+Parameters:
+  WebInstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.micro
+    ConstraintDescription: must be a valid EC2 instance type.
+  KeyName:
+    Description: Key pair name
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: awslabs-key
+  AMIid:
+    Description: Image ID
+    Type: 'AWS::EC2::Image::Id'
+    Default: ami-00eb20669e0990cb4
+  LoadBalancerName:
+    Description: Name of LoadBalancer
+    Type: String
+  SSHLocation:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+Resources:
+  WebserverASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+        AvailabilityZones: !GetAZs ''
+        LoadBalancerNames:
+              - !Ref LoadBalancerName           
+        LaunchConfigurationName: 
+              Ref: LaunchConfig
+        MaxSize: "3"
+        MinSize: "2"
+        Tags:
+          - Key: Name
+            Value: Nested_webserver
+            PropagateAtLaunch: True
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      KeyName:
+        Ref: KeyName
+      ImageId: !Ref AMIid
+      InstanceType: !Ref WebInstanceType
+      LaunchConfigurationName: LaunchConfig  
+      SecurityGroups: 
+        - Fn::GetAtt: [ WebsecGroup, GroupId ]
+      UserData:
+         'Fn::Base64': !Sub |
+           #!/bin/bash
+           # install apache
+           yum install httpd24 -y
+           time=`date`  
+           # start server
+           service httpd start
+           chkconfig httpd on
+           echo "Test page of server created at  "$time"" > /var/www/html/index.html            
+  WebsecGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Security Group for Autoscaling
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref SSHLocation
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref SSHLocation 
+      Tags:
+        - Key: Name 
+          Value: WEBSERVER_SG
+```
+
+> - CloudFormation 模板中提供的用于**创建自动拓展组的一些重要详细信息**：
+> * 参数
+> ** **实例类型**： 它是一个 WebServer EC2 实例类型。它必须是**有效的 EC2 实例类型**。
+> ** **密钥名称**： 用于对实例进行** SSH 连接**的**现有 EC2 密钥对的名称**。它必须是**现有 EC2 密钥对的名称**。
+> ** **AMIid**： 它是**用于启动 Web 服务器的 us-east-1 区域中存在的镜像的 ID**。
+> ** **LoadBalancerName**： 必须将**自动拓展组附加到的负载均衡器的名称**。
+> ** **用户数据**： 在启动实例时**安装 HTTPD 服务并放置测试页以检查负载均衡器的工作**。
+> ** **SSH地址**：可用于 SSH **连接到 EC2 实例的 IP 地址范围**。它必须是 x.x.x.x/x 格式的有效 IP CIDR 范围。
+> * 资源
+> ** **WebserverASG**： 用于**创建自动拓展组的资源名称**。
+> ** **启动配置**： **启动自动拓展组定义的配置资源**。
+> ** **安全组**： **启动配置的安全组**。
+
+---
+
+=== 创建 S3 存储桶并公开
+
+> - 菜单**导航到S3**，**创建S3存储桶**
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域。
+> - 顶部菜单**导航到 S3**
+
+image::/图片/09图片/导航到S3.png[导航到S3]
+
+> - 在 S3 页面上，单击**``创建存储桶``**并**填写存储桶详细信息**。
+> - 桶名称：输入**``cloudformation-s3-template``**
+> * 注意： S3 存储桶名称是**全局唯一**的，请**选择一个可用的名称**。
+> - AWS 区域：选择**美国东部（弗吉尼亚北部）美国东部-1**
+> - 对于对象所有权：选择**``ACL 已启用``**
+> * 对象所有权：选择**``对象编写者``**
+> - 对于此存储桶的**“阻止公有访问”**设置部分
+> * **取消选中**"阻止所有公共访问"选项，然后**选中确认**选项。
+> - 将**其他设置保留**为默认值。
+> - **创建存储桶按钮**
+> - S3 **存储桶已创建**。
+
+---
+
+=== 配置S3存储桶策略使其公开
+
+> - 单击**``权限``**选项卡，然后**配置以下内容**
+> * 向下滚动到**存储桶策略**，单击右侧的**编辑**按钮。
+> * 此时将显示一个空白的**存储桶策略编辑器**。
+> * 将存储桶的 ARN 复制到**剪贴板**。
+> * 例如**``arn:aws:s3:::cloudformation-s3-template``**
+> - 复制下方**整个策略**，将其粘贴到存储桶策略中，
+> - 下面 JSON 中的 ``Resource`` **改为自己的存储桶ARN**
+
+```json
+{
+    "Version": "2012-10-17",
+    "Id": "MYBUCKETPOLICY",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::cloudformation-s3-template/*"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::cloudformation-s3-template/*"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "s3:DeleteBucket",
+            "Resource": "arn:aws:s3:::cloudformation-s3-template"
+        }
+    ]
+}
+```
+
+> - 点击**``保存更改``**按钮。
+> - 现在已**通过修改存储桶策略**的方式使S3存储桶**公开**
+
+---
+
+=== 将文件上传到 S3 存储桶
+
+> - **单击**存储桶名称**``cloudformation-s3-template``**。
+> - 在对象中，您可以看到**以下消息**
+> * 此存储桶中**没有任何对象**。
+
+image::/图片/41图片/没有对象.png[没有对象]
+
+> - 您需要从本地计算机上传**刚刚创建的两个yaml文件**
+> - 将文件**上传到我们的 S3 存储桶**
+> * 点击**上传**按钮。
+> * 点击**添加文件**按钮。
+> * 浏览您的本地文件**并选择它**
+> * 单击上传按钮**上传**。
+> - 您可以从屏幕顶部的传输面板中**查看上传进度**。
+> - 上传文件后，它将**显示在存储桶中**。
+
+---
+
+=== 复制模板创建嵌套堆栈的模板文件
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``Nested_stack.yaml``**
+
+```yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Template for Nested stack
+Resources:
+ MyWebserverstack1:
+   Type: AWS::CloudFormation::Stack
+   Properties:
+       TemplateURL: https://cloudformation-s3-template.s3.amazonaws.com/Nested_ASG.yaml
+       TimeoutInMinutes: '5'
+       Parameters:
+         LoadBalancerName: !GetAtt 'Elbstack.Outputs.LoadBalancerName'
+ Elbstack:
+   Type: AWS::CloudFormation::Stack
+   Properties:
+      TemplateURL: https://cloudformation-s3-template.s3.amazonaws.com/Nested_LB.yaml
+Outputs:
+  StackRef:
+    Value: !Ref Elbstack 
+  OutputFromNestedStack:
+    Value: !GetAtt Elbstack.Outputs.LoadBalancerName
+```
+
+> - CloudFormation 模板中提供的一些**重要详细信息**，用于创建**嵌套堆栈**。
+> * 资源
+> ** **MyWebserverstack**： 用于**创建自动拓展组的堆栈的名称**。
+> ** **参数**：Webserverstack 中的**变量**，它是对**负载均衡器名称的引用**（我们将负载均衡器作为输出接收）。
+> ** **Elbstack**：用于**创建负载均衡器的堆栈的名称**。
+
+---
+
+=== 编辑 Nested_stack.yaml 文件
+
+> - 首先，**导航到 S3 控制台**，然后**打开刚刚创建的 S3 存储桶**。
+> - **复制文件的 S3 URL（对象 URL Nested_ASG.yaml）**。 这需要在 **``Nested_stack.yaml``** 文件中提供，以便**创建嵌套堆栈**。
+> - 同样，**复制文件的 S3 URL（对象 URL Nested_LB.yaml）**。 这需要在 **``Nested_stack.yaml``** 中提供此 URL 才能**创建负载均衡器**。
+> - 接下来，**打开 ``Nested_stack.yaml`` 文件**，并将 ``Nested_stack.yaml`` 文件中的 **``TemplateURL``** 进行**替换**，**如图所示**。
+
+image::/图片2/118图片/编辑模版.png[编辑模版]
+
+> - 最后，**保存 ``Nested_stack.yaml`` 文件**并将保存的文件**上传到 S3 存储桶**。
+
+image::/图片2/118图片/编辑模版保存.png[编辑模版保存]
+
+> - **复制文件 Nested_stack.yaml 的 S3 URL（对象 URL）**。这将**用于创建嵌套堆栈**。要复制 S3 URL，请**单击 ``Nested_stack.yaml`` 文件并复制 URL**
+
+---
+
+=== 使用 CloudFormation 嵌套堆栈创建具有自动拓展组和负载平衡器的 Web 服务器
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``Amazon S3 URL``**
+> ** Amazon S3 URL ：输入 **``Nested_stack.yaml 对象 URL ``**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``mycfstack``**
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，**选中两个确认信息**，如下图所示，然后单击**创建堆栈**。
+
+image::/图片2/118图片/确认信息.png[确认信息]
+
+> * 注意：请**等待 CloudFormation 创建资源完成**
+
+image::/图片2/118图片/CloudFormation.png[CloudFormation]
+
+---
+
+=== 检查嵌套堆栈创建的资源
+
+==== 检查自动拓展组
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 EC2**
+> - 在左侧面板中**向下滚动**，然后单击**“自动拓展组”**。
+> - 您将找到**由 CloudFormation 嵌套堆栈创建的自动拓展组**。
+
+image::/图片2/118图片/检查自动伸缩组.png[检查自动伸缩组]
+
+
+==== 检查启动配置
+
+> - 顶部菜单**导航到 EC2**
+> - 在左侧面板中**向下滚动**，然后单击**“启动配置”**。
+> - 您将找到**由 CloudFormation 嵌套堆栈创建的启动配置**。
+
+image::/图片2/118图片/检查启动配置.png[检查启动配置]
+
+> - 使用了以下参数**创建启动配置**：
+> * 名称 ： 	**``LaunchConfig``**
+> * 密钥名称 ： **``awslabs-key``**
+> * 实例类型 ： **``t2.micro``**
+> * 安全组：**``WEBSERVER_SG``**
+
+
+==== 检查 EC2 实例
+
+> - 顶部菜单**导航到 EC2**
+> - 单击左侧面板中的**实例**
+> - 您会发现**新创建的实例正在运行**。
+
+image::/图片2/118图片/检查 EC2 实例.png[检查 EC2 实例]
+
+> - 您将**看到两个 EC2 实例已启动并且当前正在运行**（因为我们在 **``Nested_ASG.yaml``** 文件中将自动拓展组的**最小容量指定为了两个实例**）。
+
+
+==== 检查负载均衡器
+
+> - 顶部菜单**导航到 EC2**
+> - 在左侧面板中**向下滚动**，然后单击**“负载均衡器”**。
+> - 检查堆栈**创建的负载均衡器**。
+
+image::/图片2/118图片/检查负载均衡器.png[检查负载均衡器]
+
+> - 您可以发现，负载均衡器**包含两个正在运行的实例**，其状态为**“正在服务”**。
+
+image::/图片2/118图片/正在服务.png[正在服务]
+
+==== 测试负载均衡器
+
+> - 顶部菜单**导航到 EC2**
+> - 在左侧面板中**向下滚动**，然后单击**“负载均衡器”**。
+> - 单击**“描述”**并**复制 DNS 名称**
+> - 将 DNS 名称**粘贴到浏览器中**，您将**获得以下输出**，证明**负载均衡器正在将流量路由到实例**。
+
+image::/图片2/118图片/测试负载均衡器.png[测试负载均衡器]
+
+> - **刷新 URL 几次**，您将**收到在不同时间戳中服务器的响应**。
+
+image::/图片2/118图片/测试负载均衡器1.png[测试负载均衡器1]
+
+> - **得出的结论是**，负载均衡器在**两台服务器之间路由流量**。
+> - 我们通过CloudFormation嵌套堆栈**已成功创建了 Web 服务器**、**Auto Scaling组和负载均衡器**
+
+---

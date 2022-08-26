@@ -1,0 +1,120 @@
+## Systems Manager 参数存储
+
+=== 关于 SSM 参数存储
+
+> - **参数存储用例**
+> * 参数存储可用于**安全地存储配置和密文**。
+> * 您还可以使用 AWS KMS **加密数据**
+> * 它是一种**无服务器服务**，**易于扩展，高度耐用**，**易于SDK**，并且**免费使用**。
+> * 您可以对**配置/密文使用版本跟踪功能**。
+> * 它使用**路径和IAM提供配置管理**。
+> * 可以**使用 CloudWatch Events 启用通知**。
+> * 它也可以**与CloudFormation集成**。
+> - 在本实验中，您将在 SSM 参数存储中**存储数据库终端节点和数据库密码**，并**通过 CloudShell（集成到控制台中的 AWS CLI）进行查看**。
+
+=== 架构图
+
+image::/图片2/113图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 创建参数存储并存储数据
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域。
+> - 菜单导航到**``AWS Systems Manager``**。
+> - 在**左侧面板**上，向下滚动到**应用程序管理**，然后单击**``Parameter Store``**。
+> - 在 AWS Systems Manager参数存储的**主页**上，单击**创建参数**按钮。
+> - 您将**存储两个参数**，**``db-endpoint 为 String``，``db-password 为 SecureString``**。
+> - 输入有关**参数 db-endpoint 的详细信息**：
+> * 名称：输入 **``/lab-app/dev-env/db-endpoint``**
+> * 说明：输入 **``Endpoint of the database for the development environment``**
+> * 层：选择**``标准``**
+> * 类型：选择**``String``**
+> * 数据类型：选择**``text``**
+> * 值：输入 **``mysqlinstance1-k82h.123456789012.us-east-1.rds.amazonaws.com:3306``**
+
+image::/图片2/113图片/参数存储1.png[参数存储1]
+
+> - 单击**创建参数**按钮  
+> - 随后再次单击**“创建参数”**按钮
+> - 输入有关参数 ** db-password 的详细信息**：
+> * 名称：输入 **``/lab-app/dev-env/db-password``**
+> * 描述：输入 **``Password of the database for the development environment``**
+> * 层：选择**``标准``**
+> * 类型：选择**``SecureString``**
+> * KMS 密钥源：选择**``我的当前账户``**
+> * KMS 密钥 ID：选择**``alias/aws/ssm``**
+> * 值：输入 **``Eh9x6E!RGHa8zYM``**
+
+image::/图片2/113图片/参数存储2.png[参数存储2]
+
+> - 单击**创建参数**按钮  
+> - 现在，**数据库终端节点**和**数据库密码**参数都已创建。
+
+image::/图片2/113图片/参数都已创建.png[参数都已创建]
+
+---
+
+
+=== 在 CloudShell 中创建环境
+
+> - 单击右上角 AWS 菜单栏上的**（Cloud Shell）图标**。
+
+image::/图片/24图片/控制台.png[控制台]
+
+> - 浏览器中将打开一个新选项卡，如果您看到一条**指向 cloud shell 的欢迎消息**，请单击该消息中的"关闭"按钮。
+> - 您将在屏幕上看到一条**正在创建环境的消息**。
+
+image::/图片/24图片/正在创建环境.png[正在创建环境]
+
+> - 等待几分钟以**完成环境创建**。创建环境后，您就可以**使用终端了**。
+
+image::/图片2/113图片/环境创建完成.png[环境创建完成]
+
+---
+
+=== 使用获取参数查看 CloudShell 中的数据
+
+> - 要查看以**字符串格式存储的 db 终端节点**，请运行**以下命令**：
+> * **``aws ssm get-parameters --names /lab-app/dev-env/db-endpoint``**
+
+image::/图片2/113图片/终端节点.png[终端节点]
+
+> - 要查看以 SecureString 格式**存储的 db 密码**，请运行**以下命令**：
+> * **``aws ssm get-parameters --names /lab-app/dev-env/db-password``**
+
+image::/图片2/113图片/db 密码.png[db 密码]
+
+> - 看起来这是加密的，让我们**解密**它。要解密格式**查看 db 密码**，请**运行以下命令**：
+> * **``aws ssm get-parameters --names /lab-app/dev-env/db-password --with-decryption``**
+
+image::/图片2/113图片/让我们解密它.png[让我们解密它]
+
+> - 要使用**单个命令同时查看** db-endpoint 和 db-password，请**运行以下 CLI 命令**：
+> * **``aws ssm get-parameters --names /lab-app/dev-env/db-endpoint /lab-app/dev-env/db-password``**
+
+image::/图片2/113图片/单个命令.png[单个命令]
+
+> - 看起来db密码**仍然是加密格式**，让我们**用``--with-decryption``参数解密它**
+> * **``aws ssm get-parameters --names /lab-app/dev-env/db-endpoint /lab-app/dev-env/db-password --with-decryption``**
+
+image::/图片2/113图片/参数解密它.png[参数解密它]
+
+---
+
+=== 使用路径获取参数
+
+> - 要查看**开发环境的两个参数**，请**运行以下命令**：
+> * **``aws ssm get-parameters-by-path --path /lab-app/dev-env``**
+
+image::/图片2/113图片/路径获取.png[路径获取]
+
+> - 您可以通过**添加 ``--with-decryption`` 参数**来解密**上述 SecureString**
+> * **``aws ssm get-parameters-by-path --path /lab-app/dev-env --with-decryption``**
+> - 或者，您可以通过**添加 ``--recursive`` 来查看 ``/lab-app`` 路径的参数**。
+> * **``aws ssm get-parameters-by-path --path /lab-app --recursive --with-decryption``**
+
+image::/图片2/113图片/递归参数.png[递归参数]
+
+
+---

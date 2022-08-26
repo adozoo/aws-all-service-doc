@@ -1,0 +1,158 @@
+
+## Amazon Aurora数据库
+
+
+=== 架构图
+
+image::/图片/60图片/架构图.png[架构图]
+
+
+== 实验步骤
+
+=== 为 RDS 实例创建安全组
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 EC2**
+> - 左侧面板，单击**"网络和安全"**，然后单击**"创建安全组"**。
+> - 安全组名称：输入**Aurora_lab_sg**
+> - 描述：**Security group for RDS Aurora**
+> - VPC：选择**默认VPC**
+> - 在**"入站规则"**下，单击**"添加规则"**。
+> - 添加 **MYSQL/Aurora**
+
+----
+  . 选择类型： 选择 MYSQL/Aurora
+  . 协议：TCP
+  . 端口范围：3306
+  . 源：选择"任何位置"
+----
+
+> - 将其他内容**保留为默认值**，然后单击**创建安全组按钮**。
+> - 现**已创建安全组**。
+
+---
+
+
+=== 创建 RDS 数据库实例
+
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 通过菜单**导航到 RDS**。
+> - 单击**"数据库"**部分中的**"创建数据库"**按钮。
+> - 指定数据库**详细信息**：
+> * 实例**规格**
+> ** 数据库创建方法：**标准创建**
+> ** 引擎选项：选择 **Amazon Aurora**
+> ** 版本 ： **Amazon Aurora MySQL 兼容版本**
+> ** 容量类型 ： **已预置**
+> ** 复制功能：选择**单主机（默认）**
+> ** 引擎版本 ：**默认 （Aurora （MYSQL 5.7） 2.07.2）**
+> ** 模板 ：选择**开发/测试**
+> ** 数据库集群标识符：**MyAuroraCluster**
+> ** 主用户名：**awslabsAdmin**
+> ** 主密码和确认密码：**awslabs123**
+> ** 注意：这是用于登录数据库的用户名/密码组合。请记下它们。
+> ** 数据库实例类 ： **db.t3.small**
+> ** 可用性和持久性：选择**不创建 Aurora 副本**
+
+image::/图片/60图片/实例类.png[实例类]
+
+> ** VPC：选择**默认**
+> ** 子网组：选择**默认**
+> ** 公共访问：选择**是**
+> ** VPC 安全组：选择**现有**
+> ** 安全组注意：**删除默认安全组**，然后**选择Aurora_lab_sg**
+
+image::/图片/60图片/安全组.png[安全组]
+
+
+> - 转到**其他配置**选项
+> * 初始数据库名称：**MyDB**
+> * 数据库集群参数组：**默认**
+> * 数据库参数组：**默认**
+> * 加密：**取消选中**
+> * 注意：将**其他所有设置保留为默认值**
+> - 单击**"创建数据库"**
+> - 导航到**"数据库"**。
+> - 在 RDS 控制台上，将**显示新数据库实例的详细信息**。数据库实例的状态为**"正在创建"**，直到数据库实例**可供使用**。
+> - 当状态更改为可用时，您**可以连接到数据库实例**。新实例状态变为**"可用"**之前最多可能**需要 20 分钟**。
+
+image::/图片/60图片/创建成功.png[创建成功]
+
+
+---
+
+=== 连接到数据库实例上的 Amazon Aurora MySQL RDS 数据库
+
+> - 要连接到 Aurora 数据库，我们**需要 endpoint**。
+> - **单击 RDS 集群名称**，然后导航到**连接性和安全性**，以查找 **Master（Writer） 和 Reader 实例的终端节点**，您可以使用这些**终端节点连接到数据库实例**。
+
+image::/图片/60图片/终端节点.png[终端节点]
+
+> - 您看到的**终端节点类似于以下示例**：
+> * 写入器实例： **``myauroracluster.cluster-cgmbrbnqahyd.us-east-1.rds.amazonaws.com``**
+> * 读取器实例： **``myauroracluster.cluster-ro-cgmbrbnqahyd.us-east-1.rds.amazonaws.com``**
+
+---
+
+=== 使用 MySQL 工具连接到数据库实例上的 RDS 数据库
+
+> - 打开 MySQL 图形化**连接工具**。单击**加号图标**
+
+==== 本机情况
+
+> - 连接名称：输入示例名称 **Amazon Aurora**
+> - 主机名：**已复制的写入器实例终端节点**
+> - 端口：**3306**
+> - 用户名：**awslabsAdmin**
+> - 密码：**awslabs123**
+
+image::/图片/60图片/测试.png[测试]
+
+
+> - 单击**"测试连接"**以**确保能够正确连接到数据库**。
+
+image::/图片/47图片/测试成功.png[测试成功]
+
+> - 单击**"保存"**以**保存连接**。
+> - 成功连接并**打开数据库后**，**可以创建表并对连接的数据库执行各种查询**。
+
+image::/图片/60图片/成功.png[成功]
+
+---
+
+=== 测试 Amazon Aurora 数据库
+
+> - 在 SQL 编辑器中，让我们**创建一个示例数据库和一个表**，用于**练习目的**。
+> - 现在**复制下面的MySQL命令**并将其**粘贴**到**"查询"选项卡**中运行。
+
+```sql
+  drop database MyDB;
+  create database SchoolDB;
+  use SchoolDB;
+  CREATE TABLE students ( 
+                     subject_id INT AUTO_INCREMENT,
+                     subject_name VARCHAR(255) NOT NULL,
+                     teacher VARCHAR(255),
+                     start_date DATE,
+                     lesson TEXT,
+                     PRIMARY KEY (subject_id));
+  INSERT INTO students(subject_name, teacher) VALUES ('English', 'John Taylor');
+  INSERT INTO students(subject_name, teacher) VALUES ('Science', 'Mary Smith');
+  INSERT INTO students(subject_name, teacher) VALUES ('Maths', 'Ted Miller');
+  INSERT INTO students(subject_name, teacher) VALUES ('Arts', 'Suzan Carpenter');
+  select * from students;
+```
+
+image::/图片/60图片/运行sql.png[运行sql]
+
+
+> - 我们创建了一个**示例数据库和表**。
+> - Amazon Aurora **数据库测试成功**。
+
+image::/图片/60图片/sql结果.png[sql结果]
+
+
+---
+
+

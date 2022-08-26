@@ -1,0 +1,359 @@
+
+## 配置 DynamoDB 流
+
+=== Amazon DynamoDB Streams
+
+> - Amazon DynamoDB 流是**一项功能**，当 DynamoDB 表中**发生记录修改**或**更改时**，它会**发出事件**。
+> - DynamoDB 流**按时间顺序捕获 DynamoDB 表中的时间级别修改**。
+> - 启用 DynamoDB 流后，它会**有序地捕获 DynamoDB 表中发生的更改**。
+> - DynamoDB 流可用于**将数据从区域 1 的一个 DynamoDB 表复制到区域 2 的另一个 DynamoDB 表**。
+> - 事件可以属于**以下类型**：
+> * **插入**
+> * **更新**
+> * **删除**
+> - 每个事件都**携带正在修改的行的内容**。
+> - 它通过**加密日志记录所有修改**，并将其**存储24小时**。
+> - 每当**发生更改时**，DynamoDB 都会**创建一个流记录**以及**项目的主键属性**。
+> - DynamoDB 流由**流记录**和**单个流记录**组成，后者**表示 DynamoDB 表中的唯一数据修改**。
+> - 每个**流记录**都是**通过序列号分配**的，这为我们**提供了修改发生的确切顺序**。
+> - 流记录耦合到称为**分片的组**中。每个**分片包含多个流记录**。
+> - 分片还**包含访问流记录所需的信息**。
+> - 分片中的**流记录将有时间限制**，生存期**为 24 小时**，在此之后，**流记录将自动删除**。
+> - 如果需要**使用一个父分片**和**多个子分片**并行处理记录，可以**将分片拆分为多个分片**。
+> - 处理顺序将**首先优先选择父级**，**然后是子分片**。
+> - **事件近乎实时地记录下来**。
+> - 在**实时应用程序**中，我们可以**访问包含发生更改的事件的流记录**。
+> - DynamoDB 流可以配置为**捕获其他信息**，例如在**修改发生之前**和**之后捕获**已**修改项目的图像**。
+> - 可以在 DynamoDB 流**终端节点**的**帮助下读取和处理 DynamoDB 流记录**。
+> - 可以在创建 DynamoDB 表时**启用流**，也**可以随时禁用流**。
+> - 启用和禁用流**不会影响表的性能**，因为 DynamoDB 流是**异步运行**的。
+> - **禁用 DynamoDB 流后**，流中的数据**将持续 24 小时可用**。**没有**可用于**手动删除现有流的方法**。
+> - DynamoDB 流**可用作 Lamda 函数的事件源**，因此您**可以创建根据 DynamoDB 表中的事件**执行操作的应用程序。
+> - DynamoDB **捕获的事件**可以**通过将数据移动到其他 AWS 服务**（如 S3 或 Cloudwatch）中来**进行分析**。
+
+=== 架构图
+
+image::/图片/62图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 创建 DynamoDB 表
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 DynamoDB**,单击**创建表**
+> * 表名称：输入**``awslabs_dynamodb_table``**
+> * 分区键：输入**``id``**并选择**字符串**
+> * 将所有其他设置**保留为默认值**，然后单击**"创建表"**。
+> - 您的表将**在 2-3 分钟内创建**。
+
+image::/图片/62图片/表创建完成.png[表创建完成]
+
+---
+
+=== 创建项目并将数据插入到 DynamoDB 表中
+
+> - 接下来，我们将在创建的表中**插入数据**。
+> - 单击**项目**选项卡，然后选择**``awslabs_dynamodb_table``**，然后单击**创建项目**。
+> - 我们需要为**名字**、**姓氏**和**年龄**创建三个**额外的字段**。
+> - 单击**"添加新属性"**，然后从下拉菜单中选择**"字符串"**，输入下面**给出的相应值**，然后单击**创建项目**。
+
+image::/图片/62图片/创建项目.png[创建项目]
+
+> - 我们将插入一个具有以下参数的**新项目**：
+> * id  →   **``12``**
+> * first name  →   **``Anand``**
+> * last name  →   **``Arjunan``**
+> * age  →  **`` 32``**
+> - 使用与上述相同的方法，在表中创建另一个项目。
+> * id  →    **``13``**
+> * first name  →  **`` Bala``**
+> * last name  →   **``Kumaran``**
+> * age  →   **``34``**
+> - 使用与上述相同的方法，在表中创建另一个项目。
+> * id  →    **``14``**
+> * first name  →   **``Chandra``**
+> * last name  →   **``Prakash``**
+> * age  →   **``32``**
+> - 注意：创建项目时，**请勿在字段中提供额外的空格**。
+> - 完成后，我们可以**验证 DynamoDB 表中相应字段的值**。
+
+image::/图片/62图片/3个项目.png[3个项目]
+
+---
+
+=== 创建 IAM 角色
+
+> - 顶部菜单**导航到 IAM**
+> - 单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+
+image::/图片/09图片/IAM创建角色.png[IAM创建角色]
+
+
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Lambda**
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色2]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。
+> - 选择**"创建策略"**，将**打开一个新选项卡**，然后将**代码复制并粘贴到 JSON 下**。
+
+```json
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Effect": "Allow",
+              "Action": [
+                  "dynamodb:Describe*",
+                  "dynamodb:Get*",
+                  "dynamodb:List*",
+                  "dynamodb:Batch*",
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:Get*",
+                  "logs:List*",
+                  "logs:Describe*",
+                  "logs:PutLogEvents",
+                  "dynamodb:PutItem",
+                  "cloudwatch:Describe*",
+                  "cloudwatch:Get*",
+                  "cloudwatch:List*",
+                  "sns:CreateTopic",
+                  "application-autoscaling:Describe*",
+                  "s3:PutObject",
+                  "s3:List*",
+                  "s3:Get*",
+                  "dynamodb:Scan",
+                  "tag:Describe*",
+                  "tag:Get*"
+              ],
+              "Resource": "*"
+          }
+      ]
+  }
+```
+
+> - 现在点击 **下一页：标签**按钮。**无需更改**
+> - 单击**"下一步：查看"**按钮。
+> - 输入策略名称：**dynamopolicy**，然后单击**"创建策略"**。
+> - 创建策略后，返回**"创建角色"**选项卡，然后单击右上角的**"刷新"**按钮。
+> - 在"筛选策略"部分中**搜索"dynamopolicy"**并将其**选中**。
+> - 单击**下一步**
+> - 角色名称：输入 **dynamorole**
+> - 您**已成功**按名称 dynamorole **创建了一个 IAM 角色**。
+
+---
+
+=== 创建 S3 存储桶
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域。
+> - 顶部菜单**导航到 S3**
+
+image::/图片/09图片/导航到S3.png[导航到S3]
+
+> - 在 S3 页面上，单击**``创建存储桶``**并**填写存储桶详细信息**。
+> - 桶名称：输入**``s3bucketdynamotest``**
+> * 注意： S3 存储桶名称是**全局唯一**的，请**选择一个可用的名称**。
+> - AWS 区域：选择**美国东部（弗吉尼亚北部）美国东部-1**
+> - 对于对象所有权：选择**ACL 已启用**
+> - 对于此存储桶的“阻止公有访问”设置部分
+> * **取消选中**"阻止所有公共访问"选项，然后**选中确认**选项。
+> - 将**其他设置保留**为默认值。
+> - 单击**创建存储桶按钮**
+> - S3 **存储桶已创建**。
+> - 单击**``权限``**选项卡，然后**配置以下内容**
+> * 向下滚动到**存储桶策略**，单击右侧的**编辑**按钮。
+> * 此时将显示一个空白的**存储桶策略编辑器**。
+> * 将存储桶的 ARN 复制到**剪贴板**。
+> * **例如**``arn:aws:s3:::s3bucketdynamotest``
+> - 复制下方**整个策略**，将其粘贴到存储桶策略中，
+> - 下面 JSON 中的 Resource **改为自己的存储桶ARN**
+
+
+```json
+  {
+      "Version": "2012-10-17",
+      "Id": "MYBUCKETPOLICY",
+      "Statement": [
+          {
+              "Effect": "Allow",
+              "Principal": "*",
+              "Action": "s3:GetObject",
+              "Resource": "/*"
+          },
+          {
+              "Effect": "Allow",
+              "Principal": {
+                  "AWS": "*"
+              },
+              "Action": "s3:PutObject",
+              "Resource": "/*"
+          },
+          {
+              "Effect": "Allow",
+              "Principal": {
+                  "AWS": "*"
+              },
+              "Action": "s3:DeleteBucket",
+              "Resource": ""
+          }
+      ]
+  }
+```
+
+> - 点击**``保存更改``**按钮。
+
+---
+
+=== 创建 Lambda 函数
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 转到菜单，然后单击 **Lambda**。
+
+image::/图片/09图片/导航到Lambda.png[导航到Lambda]
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``awslabs_dynamodb_function``**
+> - 运行时：**Python 3.9**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择**``dynamorole``**
+> - 点击**创建函数**该按钮。
+> - 配置页面：在此页面上，我们需要**配置我们的 python 函数**。
+> - 向下滚动，可以看到**"代码源"**部分。
+> - **删除 lambda_function.py 中的现有代码**。
+> - 将下方代码**复制并粘贴**到**"代码源"**下的**lambda_function.py**中。
+
+```py
+  import boto3
+  import json
+  from botocore.exceptions import ClientError
+  def lambda_handler(event, context):
+      data = []
+      TableName = "awslabs_dynamodb_table"
+      try:
+          s3 = boto3.resource('s3', region_name='us-east-1')
+          ddbclient = boto3.client('dynamodb', region_name='us-east-1')
+          response = ddbclient.list_tables()
+          mytables = response['TableNames']
+
+          if TableName in mytables:
+              allitems = ddbclient.scan(TableName= TableName)
+              for item in allitems['Items']:
+                  item_list = {}
+                  allKeys = item.keys()
+                  for k in allKeys:
+                      value = list(item[k].values())[0]
+                      item_list[k] = str(value)
+                  data.append(item_list)
+              data = json.dumps(data)
+              responses3 = s3.Object('s3bucketdynamotest', 'data.txt').put(Body=data)
+              print("Completed Upload to S3")
+          print("Lambda run completed")
+          return {
+                  'statusCode': 200,
+                  'body': json.dumps("success")
+                  }
+      except ClientError as e:
+              print("Detailed error: ",e)
+              return {
+                      'statusCode': 500,
+                      'body': json.dumps("error")
+                      }
+      except Exception as e:
+              print("Detailed error: ",e)
+              return {
+                      'statusCode': 500,
+                      'body': json.dumps("error")
+                      }
+```
+
+> - 如果您已使用任何**其他名称创建了 DynamoDB 表**，请在代码中**对代码进行更改**。
+> - 您创建的存储桶同理，在**代码中进行更改**。
+> - 点击**部署**按钮**保存**
+
+image::/图片/62图片/确认Lambda.png[确认Lambda]
+
+> - 更新代码后，单击**"配置"**，然后单击**"常规配置"**上的"编辑"以到达**"基本设置"**，并将**"超时"**值更**改为 1 分钟**。
+> - 现在，您已经**成功创建了一个 Lambda 函数**，用于在**发生更改时** **捕获 DynamoDB 表中的项目**。我们还配置了一个**包含 DynamoDB 表的文本文件**，该文件**将放入 S3 中**。
+
+---
+
+=== 向 DynamoDB 表添加触发器
+
+> - **导航回 DynamoDB 服务中的表页面**。
+> - 确保您位于**弗吉尼亚北部**区域。
+> - 选择表**``awslabs_dynamodb_table``**。
+> - 然后选择**导出和流**。
+> - 现在**向下滚动到 DynamoDB 流详细信息**，然后单击**启用**。
+
+image::/图片/62图片/流启用.png[流启用]
+
+
+> - 将设置**保留为默认值**，然后单击**启用流**。
+> - 现在**向下滚动**，您将能够在 DynamoDB 流**详细信息**下**找到触发器部分**。
+> - 在**"触发器"**部分下，单击**"创建触发器按钮"**。
+
+image::/图片/62图片/创建触发器.png[创建触发器]
+
+> - 在**下一个屏幕中**
+> * Lambda 函数 ：选择我们**创建的函数**，即**``awslabs_dynamodb_function``**
+> * 批处理大小 ： **1**
+> * 启用触发器：**选中**
+> - 单击**"创建触发器"**按钮。
+> - DynamoDB 流触发器将在触发器的状态为**"启用"**后**准备就绪**
+
+image::/图片/62图片/触发器创建成功.png[触发器创建成功]
+
+---
+
+
+=== 对 DynamoDB 表进行更改并验证触发器
+
+> - 我们将**在 DynamoDB 表中进行一些更改**，这将**启动 Lambda 以向 S3 提供数据库快照**。
+> - 在 DynamoDB 控制面板中，转到**项目部分**，然后**选择**我们创建的**表``awslabs_dynamodb_table``**。
+> - 单击**"创建项目"**按钮。
+> - 现在，在**表awslabs_dynamodb_table中**，我们将**插入一个具有以下参数的新项目**：
+> * id  →  **``15``**
+> * first name  →  **``Dhana``**
+> * last name  →  **``Sekaran``**
+> * age  →  **``32``**
+> - 我们将通过单击**``id 12``**并将名字更改为**``Arun``**
+> - 完成后，单击**"保存更改"**按钮。
+> * 编辑名字之前  →  first name : **``Anand``**
+> * 编辑名字之后  →  first name : **``Arun``**
+
+image::/图片/62图片/修改dynamodb.png[修改dynamodb]
+
+> - 进行**更改后**，转到**"导出和流"**部分中的**"触发器"**选项卡，然后按**"刷新"**按钮。
+> - 现在，DynamoDB Streams 将**触发 Lambda 函数**，将表的**项目转储到名为 **``data.txt``** 的文本文件中** （执行此操作需要一分钟），并将文件**上传到 S3 存储桶**。
+> - 要**验证这一点**，请**导航到 S3 **并**单击名为 **``s3bucketdynamotest``** 的存储桶**。选择**data.txt文件**，然后**单击下载**
+
+image::/图片/62图片/下载s3.png[下载s3]
+
+> - 打开 **``data.txt``** 文件，并**验证文本文件**的内容**是否为 JSON 格式**。
+
+image::/图片/62图片/json.png[json]
+
+> - 更新的内容**将在data.txt中提供**。
+> - **重复更新**并向**表中添加新项目的过程**，以**查看 S3 中的更改报告**。
+
+---
+
+=== DynamoDB 流 CloudWatch 日志
+
+> - 通过菜单导航到**CloudWatch**。
+> - 单击**左侧面板**中日志下的**日志组**。
+> - 您应该能够在日志组下看到**dynamodb 日志**。如果看不到，请**等待5-10分钟**，CloudWatch通常在**创建后大约需要5-10分钟才能获取详细信息**
+
+image::/图片/62图片/日志组.png[日志组]
+
+> - 现在点击**``/aws/lambda/awslabs_dynamodb_function``**。
+> - 在**日志流**部分下，单击**存在的流**，我们可以在**其中找到触发的事件流**。
+> - 我们可以查看**Lambda 函数在 DynamoDB 中执行某些操作时的日志事件**。
+
+image::/图片/62图片/日志事件.png[日志事件]
+
+---

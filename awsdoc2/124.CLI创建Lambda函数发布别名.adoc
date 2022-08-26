@@ -1,0 +1,391 @@
+
+## CLI创建Lambda函数发布别名
+
+=== Lambda 版本和别名
+
+> - 可以**使用 Lambda 版本**来**管理 AWS Lambda 函数的部署**
+> - Lambda 函数会在您**每次发布函数时创建一个新版本**。
+> - **创建的新版本**是函数的**未发布版本的副本**。
+> - Lambda **允许我们仅在未发布的函数版本**上**更改函数代码和设置**。
+> - 您的 Lambda 函数的**每个版本都有自己的 ARN**。
+> - **一旦函数发布**，**代码和大多数设置将被锁定**，以**确保使用该版本的用户获得一致体验**，并且您**无法编辑或修改该版本的代码**。
+> - Lambda **别名充当指向特定 Lambda 函数版本的指针**。
+> - AWS **允许我们为特定的 Lambda 函数创建一个或多个别名**。
+> - 每个别名都有自己**独特的 ARN **并**指向特定版本**，**不能将一个别名指向其他别名**。
+> - 您可以**更新别名**以**指向其他某个函数的新版本**。
+
+=== 架构图
+
+image::/图片2/124图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 为 EC2 创建 IAM 角色
+
+> - 导航到**``IAM``**
+> - 在**左侧菜单**中，单击**``角色``** 。单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:EC2**
+
+image::/图片/25图片/创建IAM.png[创建IAM]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。
+> - 选择**"创建策略"**，将**打开一个新选项卡**，然后将**代码复制并粘贴到 JSON 下**。
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Stmt1575022704273",
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole",
+                "iam:CreateRole",
+                "lambda:CreateAlias",
+                "lambda:CreateFunction",
+                "lambda:GetFunctionConfiguration",
+                "lambda:DeleteAlias",
+                "lambda:DeleteFunction",
+                "lambda:Get*",
+                "lambda:InvokeFunction",
+                "lambda:List*",
+                "lambda:PublishVersion",
+                "lambda:UpdateAlias",
+                "lambda:UpdateVersion",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+> - 现在点击 **下一页：标签** 按钮。**无需更改**
+> - 单击**"下一步：查看"**按钮。
+> - 输入策略名称：**``EC2_Role_Policy``**，然后单击**"创建策略"**。
+> - 创建策略后，返回**"创建角色"**选项卡，然后单击右上角的**"刷新"**按钮。
+> - 在"筛选策略"部分中**搜索"EC2_Role_Policy"**并将其**选中**。
+> - 单击**下一步**
+> - 角色名称：输入 **``EC2_Role``**
+> - 您**已成功**按名称 EC2_Role 创建了一个 IAM 角色。
+> * 注意：您可以使用**其他名称创建角色**，然后将其**附加到 EC2 实例**
+
+
+---
+
+=== 为 Lambda 创建 IAM 角色以创建函数和别名
+
+> - 导航到**``IAM``**
+> - 在**左侧菜单**中，单击**``角色``** 。单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+> - 在**创建角色**部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Lambda**
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色2]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。
+> - 选择**"创建策略"**，将**打开一个新选项卡**，然后将**代码复制并粘贴到 JSON 下**。
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "s3:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+> - 现在点击 **下一页：标签** 按钮。**无需更改**
+> - 单击**"下一步：查看"**按钮。
+> - 输入策略名称：**``Lambda_Role_Policy``**，然后单击**"创建策略"**。
+> - 创建策略后，返回**"创建角色"**选项卡，然后单击右上角的**"刷新"**按钮。
+> - 在"筛选策略"部分中**搜索"Lambda_Role_Policy"**并将其**选中**。
+> - 单击**下一步**
+> - 角色名称：输入 **``Lamdaversion_Role``**
+> - 您**已成功**按名称 Lamdaversion_Role 创建了一个 IAM 角色。
+> * 注意：您可以使用**其他名称创建角色**，然后将其**附加到 Lambda 函数**
+
+---
+
+=== 创建 S3 存储桶并公开
+
+> - 菜单**导航到S3**，**创建S3存储桶**
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域。
+> - 顶部菜单**导航到 S3**
+
+image::/图片/09图片/导航到S3.png[导航到S3]
+
+> - 在 S3 页面上，单击**``创建存储桶``**并**填写存储桶详细信息**。
+> - 桶名称：输入**``lambda-s3-version``**
+> * 注意： S3 存储桶名称是**全局唯一**的，请**选择一个可用的名称**。
+> - AWS 区域：选择**美国东部（弗吉尼亚北部）美国东部-1**
+> - 对于对象所有权：选择**``ACL 已启用``**
+> * 对象所有权：选择**``对象编写者``**
+> - 对于此存储桶的**“阻止公有访问”**设置部分
+> * **取消选中**"阻止所有公共访问"选项，然后**选中确认**选项。
+> - 将**其他设置保留**为默认值。
+> - **创建存储桶按钮**
+> - S3 **存储桶已创建**。
+
+---
+
+=== 配置S3存储桶策略使其公开
+
+> - 单击**``权限``**选项卡，然后**配置以下内容**
+> * 向下滚动到**存储桶策略**，单击右侧的**编辑**按钮。
+> * 此时将显示一个空白的**存储桶策略编辑器**。
+> * 将存储桶的 ARN 复制到**剪贴板**。
+> * 例如**``arn:aws:s3:::lambda-s3-version``**
+> - 复制下方**整个策略**，将其粘贴到存储桶策略中，
+> - 下面 JSON 中的 ``Resource`` **改为自己的存储桶ARN**
+
+```json
+{
+    "Version": "2012-10-17",
+    "Id": "MYBUCKETPOLICY",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::lambda-s3-version/*"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::lambda-s3-version/*"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "s3:DeleteBucket",
+            "Resource": "arn:aws:s3:::lambda-s3-version"
+        }
+    ]
+}
+```
+
+> - 点击**``保存更改``**按钮。
+> - 现在已**通过修改存储桶策略**的方式使S3存储桶**公开**
+
+---
+
+=== 创建 EC2 实例
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域。
+> - 顶部菜单**导航到 EC2**
+> - 左侧面板，单击**"实例"**，然后单击**"启动新实例"**。
+
+==== (1)控制台启动实例
+
+image::/图片/07图片/控制台2.png[控制台启动实例]
+
+==== (2)选择系统镜像
+
+image::/图片/07图片/控制台3.png[选择系统镜像]
+
+==== (3)选择实例类型
+
+image::/图片/07图片/配置1.png[选择实例类型]
+
+==== (4)配置实例
+
+> - 实例数：**输入 ``1``**
+> - IAM角色：从列表中**选择我们在上面创建的 IAM 角色**。
+> - 将所有**其他设置保留为默认值**。单击**"下一步：添加存储"**
+
+==== (5)添加存储
+
+image::/图片/07图片/配置2.png[添加存储]
+
+==== (6)添加标签
+
+> - 添加标签：点击**添加标签**按钮
+> * 键：**``Name``**
+> * 值：**``MyEC2Instance``**
+> * 点击**``下一步:配置安全组``**
+
+==== (7) 配置安全组
+
+> - 添加 SSH：
+
+----
+  . 选择类型： 选择 SSH
+  . 协议：TCP
+  . 端口范围：22
+  . 源：选择"任何位置"
+----
+
+> - 点击下一步 `审核和启动`
+
+==== (8) 审核启动
+
+> - **检查**所有选定的设置，**无误点击启动**
+> - 选择现有密钥对，确认并单击**启动实例**
+
+image::/图片/07图片/现有密钥.png[现有密钥]
+
+---
+
+=== 使用 CLI 创建 Lambda 函数
+
+> - **SSH 连接到名称为``MyEC2Instance``的 EC2 实例**
+> - 通过执行**以下命令来配置服务器**，以**消除在每个命令中添加区域的操作**：
+> * 输入**``aws configure``**命令
+> ** AWS 访问密钥 ID：**按 [Enter] 键**
+> ** AWS 私有密钥：**按 [Enter] 键**
+> ** 默认区域名称：输入 **``us-east-1``**
+> ** 默认输出格式：**按 [Enter] 键**
+
+image::/图片2/123图片/配置服务器.png[配置服务器]
+
+> - 使用**以下命令**创建**名为 ``s3bucket.py`` 的文件**
+> * **``vim s3bucket.py``**
+> * 按 **``i``** 插入**以下代码**
+
+```py
+import logging
+import boto3
+import json
+from botocore.exceptions import ClientError
+def handler(event, context):
+    #s3 = boto3.client('s3')
+    s3 = boto3.resource('s3', region_name='us-east-1')
+    s3.create_bucket(Bucket='lambda-s3-version')
+    content="File uploaded by version 1"
+    responses3 = s3.Object('lambda-s3-version', 'version1.txt').put(Body=content)
+    print("uploading file completed")
+```
+
+> - **将 S3 存储桶**的名称**替换为您创建的存储桶名称**。
+> - **确保在 2 个位置更新 S3 存储桶名称**，如**下图所示**。
+
+image::/图片2/124图片/更新.png[更新]
+
+> - 通过**按 ``ESC``+``:wq``**，以**保存 ``s3bucket.py`` 文件**。
+> - **创建 ``s3bucket.py`` 文件的 Zip 文件**，该文件**用于使用 CLI 创建 Lambda 函数**
+> * **``zip s3bucket.zip  s3bucket.py``**
+> - 使用**以下 CLI 命令创建 Lambda 函数**
+> * **``aws lambda create-function --function-name lambdaclidemo --runtime python3.9 --zip-file fileb://s3bucket.zip --handler s3bucket.handler --role arn:aws:iam::742443301218:role/Lamdaversion_Role``**
+> ** 函数名称 ： **``lambdaclidemo``**
+> ** 运行时 ： **``python3.9``**
+> ** 处理程序 ： **``s3bucket.handler``**
+> ** 角色 ARN ： **``arn:aws:iam::742443301218:role/Lamdaversion_Role``**
+
+image::/图片2/124图片/Lambda.png[Lambda]
+
+> - 您可以**在 CLI 中找到创建的 Lambda 函数的详细信息**，如上面的**屏幕截图所示**，版本为**``$LATEST``**
+> - 如果尚**未发布所选函数的版本**，则**“版本”**将只有**``$LATEST``**。
+
+---
+
+=== 更新和调用 Lambda 函数
+
+> - **默认情况下**，创建的 Lambda 函数的**超时时间为 3 秒**，您可以使用**以下命令更新 Lambda 函数的超时时间**
+> * **``aws lambda update-function-configuration  --function-name lambdaclidemo --timeout 15``**
+
+image::/图片2/124图片/超时期限.png[超时期限]
+
+> - 要在**命令行中调用 Lambda 函数**，您可以**运行以下命令**。您可以**看到 Lambda 函数为``$LATEST``版本**。
+> * **``aws lambda invoke --function-name lambdaclidemo --invocation-type RequestResponse  outputfile.txt``**
+
+image::/图片2/124图片/调用.png[调用]
+
+---
+
+=== 在 CLI 中发布 Lambda 版本
+
+> - 如果要向**新创建的 Lambda 函数添加更改**，您可以通过将其**发布为新版本的方式来更新函数**。要**发布版本**，请**运行以下命令**
+> * **``aws lambda publish-version --function-name lambdaclidemo``**
+
+image::/图片2/124图片/版本1.png[版本1]
+
+> - 现在，**导航到 AWS 控制台中的 Lambda 控制面板**以**查看函数的当前版本**，选择**当前函数-->版本**选项卡，版本面板将**显示当前函数的版本列表**。
+> - 让我们**更改文件的内容**，并将其**上传到 S3**。
+> * 首先，**导航到 EC2 CLI **并**使用下面的命令使用 vim 编辑器打开文件**
+> ** **``vim s3bucket.py``**
+> * 要进入**插入模式**，请按**``i``**。
+> * 将**内容``version 1``更改为``version 2``**。
+
+image::/图片2/124图片/插入更改.png[插入更改]
+
+> - 通过**按 ``ESC``+``:wq``**，以**保存 ``s3bucket.py`` 文件**。
+> - 现在**删除现有的 ``zip`` 文件** ``s3bucket.zip`` 并**使用以下命令创建一个新的 zip 文件**
+> * **``rm -f s3bucket.zip``**
+> * **``zip s3bucket.zip  s3bucket.py``**
+> - 您可以**使用以下命令更新 Lambda 函数中的代码**
+> * **``aws lambda update-function-code --function-name lambdaclidemo --zip-file fileb://s3bucket.zip``**
+
+image::/图片2/124图片/函数的新代码.png[函数的新代码]
+
+> - 现在调用更新代码后的**函数**
+> * **``aws lambda invoke --function-name lambdaclidemo --invocation-type RequestResponse  outputfile.txt``**
+> - 现在，**导航到 S3 控制台**并单击名为 ``lambda-s3-version`` 的 S3 存储桶以及**名为 version1.txt 和 version2.txt 来确认已更新**，因为我们调用了**两个内容不同的Lambda 函数两次**。
+
+image::/图片2/124图片/S3.png[S3]
+
+---
+
+=== 在 CLI 中发布 Lambda 版本 2
+
+> - 如果要向**新创建的 Lambda 函数添加更改**，您可以通过将其**发布为新版本的方式来更新函数**。要**发布版本**，请**运行以下命令**
+> * **``aws lambda publish-version --function-name lambdaclidemo``**
+
+image::/图片2/124图片/版本2.png[版本2]
+
+> - 在 AWS 控制台中，**导航到 Lambda 控制面板**，选择**函数 -->版本**选项卡，您可以**找到新发布的 lambdaclidemo 函数版本 2**。
+
+---
+
+=== 创建和删除 Lambda 别名
+
+> - 要为 Lambda 函数**创建别名**，请**运行以下命令**，在这里，我们将**以 ``DEV`` 的名称**为 **``lambdaclidemo``** 版本 1 **创建别名**
+> * **``aws lambda create-alias --function-name lambdaclidemo --description "sample alias for lambda" --function-version 1 --name DEV``**
+> ** 函数名称：**``lambdaclidemo``**
+> ** 版本：**``1``**
+> ** 别名：**``DEV``**
+
+image::/图片2/124图片/别名.png[别名]
+
+> - 要**检查创建的别名**，请**导航到 Lambda 控制面板**并选择**对应函数版本->别名**，您可以看到为**版本 1 创建的别名**。
+> - 您可以为**同一函数创建不同的别名**。让我们为**我们的 Lambda 函数** **``lambdaclidemo``** 创建名为 **``PROD``** 的新别名
+> * **``aws lambda create-alias --function-name lambdaclidemo --description "sample alias for lambda" --function-version 1 --name PROD``**
+> ** 函数名称：**``lambdaclidemo``**
+> ** 版本：**``1``**
+> ** 别名：**``PROD``**
+
+image::/图片2/124图片/别名2.png[别名2]
+
+> - 要**检查新创建的别名**，请**导航到 Lambda 控制面板**并选择**对应函数版本->别名**，您可以看到为**版本 1 创建的别名**。
+> - 要**删除别名**，您可以**运行删除命令**，**如下所示**。让我们**删除名为 DEV 的别名**
+> * **``aws lambda delete-alias --function-name lambdaclidemo --name DEV``**
+> * **删除后**，**导航到 Lambda 控制面板**，然后**刷新**，您可以**发现函数版本 1 的 DEV 别名已被删除**，并且您**只能看到 PROD 别名**。
+
+---
+
+=== 删除 Lambda 函数
+
+> - 您可以**运行以下命令删除 Lambda 函数**，在这里让我们删除我们创建的 **``lambdaclidemo``**函数
+> * **``aws lambda delete-function --function-name lambdaclidemo``**
+> - 现在**导航到 Lambda 控制面板**，您会发现一个**空的控制面板**，因为我们**删除了该函数**
+
+image::/图片2/124图片/删除.png[删除]
+
+---

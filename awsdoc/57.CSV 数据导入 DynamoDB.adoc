@@ -1,0 +1,401 @@
+
+## CSV 数据导入 DynamoDB
+
+=== Amazon DynamoDB
+
+> - Amazon DynamoDB 是一项**完全托管的 NoSQL 数据库服务**，其中**维护、管理负担、操作和扩展由 AWS 处理**。
+> - 它**提供个位数延迟**，即使**对于 TB 级数据也是如此**。这就是为什么它用于**需要非常快速读取的应用程序**。
+> - 它**用于游戏等需要捕获数据**并且**需要非常快的响应的应用程序**。
+
+=== 架构图
+
+image::/图片/57图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 创建 DynamoDB 表
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 DynamoDB**,单击**创建表**
+> * 表名称：输入**``awslabs_students_table``**
+> * 分区键：输入**``id``**并选择**字符串**
+> * 将所有其他设置**保留为默认值**，然后单击**"创建表"**。
+
+image::/图片/57图片/创建表.png[创建表]
+
+> - 您的表将**在 2-3 分钟内创建**。
+
+---
+
+=== 创建 S3 存储桶并上传 CSV 文件
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域。
+> - 顶部菜单**导航到 S3**
+
+image::/图片/09图片/导航到S3.png[导航到S3]
+
+> - 在 S3 页面上，单击**``创建存储桶``**并**填写存储桶详细信息**。
+> - 桶名称：输入**``csvs3dynamotest``**
+> * 注意： S3 存储桶名称是**全局唯一**的，请**选择一个可用的名称**。
+> - AWS 区域：选择**美国东部（弗吉尼亚北部）美国东部-1**
+> - 将**其他设置保留**为默认值。
+> - 单击**创建存储桶按钮**
+> - S3 **存储桶已创建**。
+> - 在对象中，您可以看到**以下消息**
+> * 此存储桶中**没有任何对象**。
+
+image::/图片/41图片/没有对象.png[没有对象]
+
+> - 您可以从本地计算机**本实验所需的CSV文件**
+
+==== **``本实验所需的CSV文件``**位于此仓库**附件目录中**
+
+> - 将文件**上传到 S3 存储桶**
+> * 点击**上传**按钮。
+> * 点击**添加文件**按钮。
+> * 浏览您的本地CSV文件**并选择它**
+> * 单击上传按钮**上传**。
+> - 您可以从屏幕顶部的传输面板中**查看上传进度**。
+> - 上传文件后，它将**显示在存储桶中**。
+
+image::/图片/57图片/students.png[students]
+
+> - CSV 文件**现在已准备好导入 DynamoDB 表**。
+
+---
+
+
+=== 创建 IAM 角色
+
+> - 顶部菜单**导航到 IAM**
+> - 单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+
+image::/图片/09图片/IAM创建角色.png[IAM创建角色]
+
+
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Lambda**
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色2]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。
+> - 选择**"创建策略"**，将**打开一个新选项卡**，然后将**代码复制并粘贴到 JSON 下**。
+
+```json
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Sid": "VisualEditor0",
+              "Effect": "Allow",
+              "Action": [
+                  "application-autoscaling:RegisterScalableTarget",
+                  "application-autoscaling:DescribeScalableTargets",
+                  "application-autoscaling:DescribeScalingActivities",
+                  "application-autoscaling:DescribeScalingPolicies",
+                  "application-autoscaling:PutScalingPolicy",
+                  "application-autoscaling:DeleteScalingPolicy",
+                  "application-autoscaling:DeregisterScalableTarget"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor1",
+              "Effect": "Allow",
+              "Action": "cloudformation:Describe*",
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor2",
+              "Effect": "Allow",
+              "Action": [
+                  "cloudwatch:DescribeInsightRules",
+                  "cloudwatch:GetInsightRuleReport",
+                  "cloudwatch:DescribeAlarms",
+                  "cloudwatch:GetMetricStatistics"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor3",
+              "Effect": "Allow",
+              "Action": [
+                  "dynamodb:BatchGetItem",
+                  "dynamodb:UpdateTimeToLive",
+                  "dynamodb:PutItem",
+                  "dynamodb:ListTables",
+                  "dynamodb:Scan",
+                  "dynamodb:ListTagsOfResource",
+                  "dynamodb:UpdateContributorInsights",
+                  "dynamodb:Query",
+                  "dynamodb:UpdateItem",
+                  "dynamodb:CreateBackup",
+                  "dynamodb:ListStreams",
+                  "dynamodb:Describe*",
+                  "dynamodb:CreateTable",
+                  "dynamodb:ListContributorInsights",
+                  "dynamodb:TagResource",
+                  "dynamodb:GetShardIterator",
+                  "dynamodb:GetItem",
+                  "dynamodb:DeleteBackup",
+                  "dynamodb:UpdateTable",
+                  "dynamodb:GetRecords"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor4",
+              "Effect": "Allow",
+              "Action": "health:*",
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor5",
+              "Effect": "Allow",
+              "Action": "kms:ListAliases",
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor6",
+              "Effect": "Allow",
+              "Action": [
+                  "lambda:CreateFunction",
+                  "lambda:TagResource",
+                  "lambda:UpdateEventSourceMapping",
+                  "lambda:InvokeFunction",
+                  "lambda:UpdateFunctionConfiguration",
+                  "lambda:CreateEventSourceMapping",
+                  "lambda:UpdateFunctionCode",
+                  "lambda:List*",
+                  "lambda:DeleteFunction",
+                  "lambda:DeleteEventSourceMapping",
+                  "lambda:Get*"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor7",
+              "Effect": "Allow",
+              "Action": [
+                  "logs:CreateLogStream",
+                  "logs:CreateLogGroup",
+                  "logs:PutLogEvents"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor8",
+              "Effect": "Allow",
+              "Action": [
+                  "s3:PutObject",
+                  "s3:Get*",
+                  "s3:PutBucketPolicy",
+                  "s3:PutBucketOwnershipControls",
+                  "s3:CreateBucket",
+                  "s3:List*",
+                  "s3:PutObjectAcl"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor9",
+              "Effect": "Allow",
+              "Action": [
+                  "sns:List*",
+                  "sns:Get*",
+                  "sns:CreateTopic"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          }
+      ]
+  }
+```
+
+> - 现在点击 **下一页：标签**按钮。**无需更改**
+> - 单击**"下一步：查看"**按钮。
+> - 输入策略名称：**dynamopolicy**，然后单击**"创建策略"**。
+> - 创建策略后，返回**"创建角色"**选项卡，然后单击右上角的**"刷新"**按钮。
+> - 在"筛选策略"部分中**搜索"dynamopolicy"**并将其**选中**。
+> - 单击**下一步**
+> - 角色名称：输入 **dynamorole**
+> - 您**已成功**按名称 dynamorole **创建了一个 IAM 角色**。
+
+---
+
+=== 创建 Lambda 函数
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 转到菜单，然后单击 **Lambda**。
+
+image::/图片/09图片/导航到Lambda.png[导航到Lambda]
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``csv_s3_dynamodb``**
+> - 运行时：**``Python 3.9``**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择**``dynamorole``**
+> - 点击**``创建函数``**该按钮。
+> - 配置页面：在此页面上，我们需要**配置我们的 python 函数**。
+> - 向下滚动，可以看到**"代码源"**部分。
+> - **删除lambda_function.py文件中的现有代码**。复制以下代码并将其粘贴到lambda_function.py文件中。
+
+```py
+  import boto3
+  s3_client = boto3.client("s3")
+  dynamodb = boto3.resource("dynamodb")
+
+  table = dynamodb.Table("awslabs_students_table")
+
+  def lambda_handler(event, context):
+      bucket_name = event['Records'][0]['s3']['bucket']['name']
+      s3_file_name = event['Records'][0]['s3']['object']['key']
+      resp = s3_client.get_object(Bucket=bucket_name,Key=s3_file_name)
+      data = resp['Body'].read().decode("utf-8")
+      Students = data.split("\n")
+      #print(students)
+      for stud in Students:
+          print(stud)
+          stud_data = stud.split(",")
+          # add to dynamodb
+          try:
+              table.put_item(
+                  Item = {
+                      "id"        : stud_data[0],
+                      "name"      : stud_data[1],
+                      "Subject"   : stud_data[2]
+                  }
+              )
+          except Exception as e:
+              print("End of file")
+```
+
+> - 上面的 Python 代码**执行以下操作**：
+> * 从 S3 存储桶**导入 CSV 文件**。
+> * 将 CSV 数据**拆分为多个字符串**。
+> * 将数据**上传到 DynamoDB 表**。
+> - 通过单击**"部署"**按钮**保存函数**。
+> - 并更改函数**超时时间**，如下所示：
+> * **导航到配置**
+> * 单击**"常规配置"**，然后单击**"编辑"**
+> * 在**"编辑基本"**设置中，将**"超时"值**更改为 1 分钟。点击**保存**按钮。
+
+---
+
+
+=== 使用 Lambda 中的模拟测试测试 CSV 数据导入
+
+
+> - 在**Lambda函数页面**中，单击**测试**选项卡。
+> - 按如下方式**配置模拟数据**：
+> * 模板：选择**``Amazon S3 Put``**，选择后，它将显示为**``s3-put``**
+> * 事件名称：输入 **``csv``**
+> * 下面在 JSON 代码中：
+> ** 在 S3 → 存储桶  → name → 输入 **``csvs3dynamotest``**
+> ** 在 S3 → 对象下  → key  → 输入 **``students.csv``**
+> ** 单击**``"保存"``**
+> ** 注意：**确保 JSON 中**的 **S3 存储桶名称**和**文件名正确无误**。
+
+image::/图片/57图片/lambda测试事件.png[lambda测试事件]
+
+
+> - 单击**测试按钮**以**触发 Lambda 函数**。
+> - 成功**执行 lambda 函数后**，您将能够**看到详细的成功消息**。
+
+image::/图片/57图片/lambda结果.png[lambda结果]
+
+> - 导航到**DynamoDB 表**，然后**单击项目**，然后选择**``awslabs_student_table``**。
+
+image::/图片/57图片/csv结果1.png[csv结果1]
+
+---
+
+=== 将事件触发器添加到 S3 存储桶
+
+> - **导航回 S3**。
+> - 单击名为**``csvs3dynamotest``**的 s3 存储桶。
+> - 单击**属性选项卡**，然后向下滚动到**事件通知**。
+> - 单击**"创建事件通知"**。
+> - 在下面输入**详细信息**：
+> * 事件名称 ： 输入**``csv_upload``**
+> * 后缀 ： 输入**``.csv``**
+> * 所有对象创建事件 ： **``选中``**
+> * 目标 ： 选择 **``Lambda 函数``**
+> * Lambda ： 选择**``csv_s3_dynamodb``**
+> * 点击**保存**。
+
+image::/图片/57图片/通知事件.png[通知事件]
+
+image::/图片/57图片/目标.png[目标]
+
+
+> - 现在，**每次将 CSV 文件上传到**我们的 **S3 存储桶时**，它都会**触发 Lambda 将** CSV 数据**导入 DynamoDB 表中**。
+
+---
+
+=== 测试 S3 事件触发器以将数据导入 DynamoDB
+
+> - 将**``students1.csv``**文件上传到**``csvs3dynamotest``**S3 存储桶。
+
+image::/图片/57图片/students1.png[students1]
+
+> - 此上传事件应**触发我们的 Lambda 函数``csv_s3_dynamodb``**将 **CSV 数据导入 DynamoDB 表``awslabs_students_table``**。
+> - 导航到**DynamoDB 表``awslabs_students_table``**以**查看更改**。如果项目**尚未更改，请单击刷新按钮**。
+
+image::/图片/57图片/csv结果2.png[csv结果2]
+
+> - 您可以**看到 CSV 数据**已**成功导入到 DynamoDB 表中**。
+
+---

@@ -1,0 +1,440 @@
+
+## AWS SAM 创建、构建和部署示例应用程序
+
+=== 什么是 AWS SAM？
+
+> - 一个**开源框架**，旨在**创建和构建无服务器应用程序**。
+> - **使用 AWS SAM**，每个**资源只需几行代码**，您就可以**以 YAML 的形式定义所需的应用程序**。
+> - 在**部署期间**，为了**更快地构建应用程序**，**SAM 会将 SAM 语法转换**并**扩展为 CloudFormation 语法**。
+> - **AWS SAM 提供速记语法**来**表示函数、API、数据库和事件源映射**。
+
+=== 架构图
+
+image::/图片2/111图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 使用 CloudFormation 预配置实验资源
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``上传模板文件``**
+> ** 点击**选择文件**按钮，在本地计算机中**选择本实验对应的 ``CloudFormation模版``进行上传**
+> ** CloudFormation模版**位于此仓库附件目录**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``testdemo``**
+> * 参数：**保持默认**
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，并点击**创建堆栈**按钮
+> * 注意：请**等待 CloudFormation 预配置资源完成**
+
+image::/图片2/111图片/CloudFormation.png[CloudFormation]
+
+---
+
+=== 创建 IAM 用户
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 IAM**
+> - 单击**``添加用户``**该按钮以**创建新的 IAM 用户**。
+
+image::/图片/59图片/创建用户.png[创建用户]
+
+> - 在**添加用户**部分，**设置用户详细信息**：
+> - 用户名：**``userdemo``**
+> - 在选择 **AWS 访问类型**部分，选择 **AWS 凭证类型**为**``访问密钥 - 编程访问和密码 - AWS 管理控制台访问``**
+> * 单击**下一步**
+
+image::/图片2/111图片/添加用户.png[添加用户]
+
+> - 设置权限：现在，您可以看到**策略列表**。
+> - 单击**直接附加现有策略**，现在，您可以看到**策略列表**。
+> - 选择**"创建策略"**，将**打开一个新选项卡**，然后将**代码复制并粘贴到 JSON 下**。
+
+```json
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Sid": "VisualEditor0",
+              "Effect": "Allow",
+              "Action": [
+                  "cloudformation:SetStackPolicy",
+                  "cloudformation:DetectStackSetDrift",
+                  "cloudformation:DetectStackDrift",
+                  "cloudformation:CancelUpdateStack",
+                  "cloudformation:UpdateStackSet",
+                  "cloudformation:CreateChangeSet",
+                  "cloudformation:DeleteStackSet",
+                  "cloudformation:Describe*",
+                  "cloudformation:ContinueUpdateRollback",
+                  "cloudformation:CreateStack",
+                  "cloudformation:DeleteStack",
+                  "cloudformation:TagResource",
+                  "cloudformation:UpdateStack",
+                  "cloudformation:List*",
+                  "cloudformation:UntagResource",
+                  "cloudformation:ExecuteChangeSet",
+                  "cloudformation:CreateStackSet",
+                  "cloudformation:ValidateTemplate",
+                  "cloudformation:Get*"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor2",
+              "Effect": "Allow",
+              "Action": [
+                  "iam:CreateRole",
+                  "iam:List*",
+                  "iam:CreatePolicy",
+                  "iam:PassRole",
+                  "iam:Get*",
+                  "iam:CreateServiceLinkedRole",
+                  "iam:UpdateAssumeRolePolicy",
+                  "iam:UntagRole",
+                  "iam:TagRole",
+                  "iam:UpdateRoleDescription",
+                  "iam:DeleteRole",
+                  "iam:AttachRolePolicy",
+                  "iam:PutRolePolicy",
+                  "iam:TagPolicy",
+                  "iam:AddRoleToInstanceProfile",
+                  "iam:DetachRolePolicy",
+                  "iam:DeleteRolePolicy",
+                  "iam:UntagPolicy",
+                  "iam:DeleteServiceLinkedRole",
+                  "iam:CreatePolicyVersion"
+              ],
+              "Resource": "*"
+          },
+          {
+              "Effect": "Allow",
+              "Action": [
+                  "ec2:Describe*",
+                  "ec2:Get*",
+                  "ec2:CreateKeyPair",
+                  "ec2:CreateSecurityGroup",
+                  "ec2:AuthorizeSecurityGroupIngress",
+                  "ec2:AuthorizeSecurityGroupEgress",
+                  "ec2:CreateTags",
+                  "ec2:RunInstances",
+                  "ec2-instance-connect:Send*",
+                  "cloudwatch:Describe*",
+                  "compute-optimizer:GetEnrollmentStatus",
+                  "elasticloadbalancing:Describe*"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "LogGroupAccess",
+              "Effect": "Allow",
+              "Action": [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents",
+                  "logs:Describe*",
+                  "logs:Get*",
+                  "logs:UpdateLogDelivery",
+                  "logs:List*",
+                  "logs:DeleteLogGroup"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "SSMAccess",
+              "Effect": "Allow",
+              "Action": [
+                  "ssm:AddTagsToResource",
+                  "ssm:Describe*",
+                  "ssm:RemoveTagsFromResource",
+                  "ssm:ResetServiceSetting",
+                  "ssm:StartSession",
+                  "ssm:TerminateSession",
+                  "ssm:UpdateServiceSetting",
+                  "ssm:Get*",
+                  "ssm:DeleteDocument",
+                  "ssm:UpdateDocument",
+                  "ssm:CreateDocument"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "ReadOnly",
+              "Effect": "Allow",
+              "Action": [
+                  "cloudtrail:Describe*",
+                  "cloudwatch:List*",
+                  "cloudwatch:Get*"
+              ],
+              "Resource": "*"
+          },
+          {
+              "Sid": "VisualEditor3",
+              "Effect": "Allow",
+              "Action": [
+                  "s3:PutObject",
+                  "s3:PutBucketPublicAccessBlock",
+                  "s3:PutObjectVersionAcl",
+                  "s3:Get*",
+                  "s3:PutBucketAcl",
+                  "s3:PutBucketPolicy",
+                  "s3:CreateBucket",
+                  "s3:PutBucketOwnershipControls",
+                  "s3:PutBucketOwnershipControls",
+                  "s3:DeleteObject",
+                  "s3:DeleteBucketPolicy",
+                  "s3:List*",
+                  "s3:PutBucketTagging",
+                  "s3:DeleteBucket",
+                  "s3:PutObjectAcl",
+                  "s3:PutBucketVersioning"
+              ],
+              "Resource": "*"
+          },
+          {
+              "Sid": "VisualEditor4",
+              "Effect": "Allow",
+              "Action": [
+                  "lambda:CreateFunction",
+                  "lambda:TagResource",
+                  "lambda:InvokeFunction",
+                  "lambda:List*",
+                  "lambda:AddPermission",
+                  "lambda:UpdateFunctionCode",
+                  "lambda:UpdateFunctionConfiguration",
+                  "lambda:DeleteFunction",
+                  "lambda:Get*"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor10",
+              "Effect": "Allow",
+              "Action": [
+                  "apigateway:DELETE",
+                  "apigateway:PUT",
+                  "apigateway:PATCH",
+                  "apigateway:POST",
+                  "apigateway:GET"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          },
+          {
+              "Sid": "VisualEditor80",
+              "Effect": "Allow",
+              "Action": [
+                  "cloudshell:DeleteEnvironment",
+                  "cloudshell:PutCredentials",
+                  "cloudshell:StopEnvironment",
+                  "cloudshell:CreateEnvironment",
+                  "cloudshell:Get*",
+                  "cloudshell:StartEnvironment",
+                  "cloudshell:CreateSession"
+              ],
+              "Resource": "*"
+          }
+      ]
+  }
+```
+
+> - 现在点击 **下一页：标签** 按钮。**无需更改**
+> - 单击**"下一步：查看"**按钮。
+> - 输入策略名称：**``SAMpolicy``**，然后单击**"创建策略"**。
+> - 创建策略后，返回**"添加用户"**选项卡，然后单击右上角的**"刷新"**按钮。
+> - 在"筛选策略"部分中**搜索"SAMpolicy"**并将其**选中**。
+> - 现在点击 **下一页：标签**按钮。**无需更改**
+> - 单击**"下一步：审核"**按钮。
+> - **查看选择是否有误**，然后单击**"创建用户"**。
+> - 会得到**访问密钥 ID-私有访问密钥和用户密码**
+> - 请**保存好它**
+
+---
+
+=== IAM用户登录进行实验
+
+> - **退出根用户登录**，使用刚刚创建的**IAM用户信息登录AWS控制台**
+
+image::/图片2/111图片/登录.png[登录]
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 EC2**
+> - 左侧面板，单击**"实例"**。
+> * 注意：如果您**没有看到 EC2 实例**，或者**看到 EC2 实例处于“正在运行”以外的任何其他状态**。这意味着**资源仍在创建中**。请**等待几分钟**，直到**环境准备就绪**。
+> - 选择**存在的 EC2 实例**，然后单击**连接**按钮。
+> - 切换到**“会话管理器”**选项卡，然后单击**“连接”**按钮。
+
+image::/图片/45图片/会话管理器连接.png[会话管理器连接]
+
+> - **片刻之后**，会话管理器**已连接到 EC2 实例**。
+
+image::/图片2/111图片/准备好.png[准备好]
+
+---
+
+=== 安装 Docker、AWS CLI 和 SAM CLI
+
+> - 使用以下命令**获取根权限**
+> * **``sudo su``**
+> - 现在使用以下命令**运行更新**
+> * **``yum -y update``**
+> - **Install AWS CLI， Zip， Unzip， wget**
+> * **``yum install awscli git zip unzip wget -y``**
+> - **安装 Docker**
+> * **``sudo amazon-linux-extras install docker -y``**
+> - **启动 Docker 服务**
+> * **``sudo service docker start``**
+> - 将 ec2 用户**添加到 docker 组**
+> * **``sudo usermod -a -G docker ec2-user``**
+> - **验证 docker 安装**，并**检查 ec2 用户**是否可以在**没有 sudo 的情况下运行 docker 命令**。
+> * **``docker ps``**
+> - **下载 AWS SAM CLI**
+> * **``wget https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip``**
+> - **验证下载的安装程序文件的完整性和真实性**
+> * **``sha256sum aws-sam-cli-linux-x86_64.zip``**
+> - 上述命令的输出应**返回哈希值**。
+> - 将**安装文件解压缩**到 sam 安装/子目录中。
+> * **``unzip aws-sam-cli-linux-x86_64.zip -d sam-installation``**
+> - **安装 AWS SAM CLI**
+> * **``sudo ./sam-installation/install``**
+> - 通过**检查版本**来**验证安装**
+> * **``/usr/local/bin/sam --version``**
+
+---
+
+=== 在 EC2 实例上配置 AWS CLI
+
+> - 要**配置 AWS CLI**，请运行**以下命令**：
+> * **``aws configure``**
+> - 输入**访问密钥 ID 和密钥 ID**。
+> - 输入区域为**``us-east-1``**。
+> - “默认输出格式[无]”的第4个选项：**按回车键**。
+
+---
+
+=== 下载示例 SAM 应用程序
+
+> - 若要**下载示例 SAM 应用程序**，请运行**以下命令**：
+> * **``/usr/local/bin/sam init``**
+> - **下载 AWS 快速入门模板**。
+> * 输入选项**``1``**
+
+image::/图片2/111图片/快速入门模板.png[快速入门模板]
+
+> - 选择快速入门应用程序**模版为``Hello World Example``**
+> * 输入选项**``1``**
+
+image::/图片2/111图片/名称为.png[名称为]
+
+> - 使用最流行的**运行时和包类型**？ [y/N]：输入 **``n``**
+
+image::/图片2/111图片/n.png[n]
+
+> - 选择**运行时 ``nodejs14.x``**
+> * 输入选项**``8``**
+
+image::/图片2/111图片/运行时.png[运行时]
+
+> - 选择 **zip 作为包类型**
+> * 输入选项**``1``**
+
+image::/图片2/111图片/包类型.png[包类型]
+
+
+> - 输入项目**名称为``Hello World Example``**
+> - 该项目将从**GitHub 克隆**
+> - 将 Hello World Example下载**为 AWS 快速入门应用程序模板**
+
+image::/图片2/111图片/快速入门应用程序模板.png[快速入门应用程序模板]
+
+> - 若要**查看应用程序文件**，请通过运行**以下命令**将目录**切换到 Hello World 示例文件夹**：
+> * **cd Hello，然后按 [Tab] 键**。
+> * **点击回车**
+> * 使用 **ls 命令列出所有文件**。
+
+image::/图片2/111图片/命令列出所有文件.png[命令列出所有文件]
+
+> - **重要文件包括**：
+> * README.md：包含**后续步骤和其他信息**。
+> * template.yaml： 包含**定义应用程序的 AWS 资源的 AWS SAM 模板**。
+> * hello-world/app.js： 包含您的 **AWS Lambda 程序处理逻辑**。
+
+---
+
+=== 生成和部署应用程序
+
+> - 若要**生成应用程序**，请运行**以下命令**：
+> * **``/usr/local/bin/sam build --use-container``**
+> - 生成过程最多**可能需要 5 分钟才能完成**。
+
+image::/图片2/111图片/需要 5 分钟.png[需要 5 分钟]
+
+> - 注意：确保您**位于同一位置**，即**在 Hello World 示例文件夹内**。
+> - 若要**部署应用程序**，请运行**以下命令**：
+> * **``/usr/local/bin/sam deploy --guided``**
+> - 要**完成构建**，提示将要求您**输入一些输入**：
+> * 堆栈名称：输入 **``Hello-World``**
+> * AWS 区域：输入 **``us-east-1``**
+> * 在部署前确认更改 [y/N]：输入 **``y``**
+> * 允许创建 SAM CLI IAM 角色 [Y/n]：输入 **``y``**
+> * 禁用回滚 [y/N]：输入 **``y``**
+> * HelloWorldFunction可能没有定义授权，这可以吗？[是/否]：输入 **``y``**
+> * 将参数保存到配置文件 [Y/n]：输入 **``Y``**
+> * SAM 配置文件 [samconfig.toml]：输入 **``Y``**
+> * SAM 配置环境 [默认]：**按 [Enter] 键**
+> - 然后**打开 CloudFormation 控制台页面**。
+> - 您会**发现正在创建一个堆栈**。等待它**完成并刷新页面**。
+
+image::/图片2/111图片/完成并刷新页面.png[完成并刷新页面]
+
+> - 与您的**应用程序同名的另一个堆栈将准备好创建**，但**需要您的批准**。
+> - 切换到会话管理器选项卡并输入**``y``**以部署此变更集
+> - **确认后**，堆栈将**创建所有资源**。
+
+image::/图片2/111图片/创建所有资源.png[创建所有资源]
+
+> - **复制 API URL 的值**并将其**粘贴到浏览器的新选项卡**中。
+
+image::/图片2/111图片/新选项卡.png[新选项卡]
+
+> - 现在**已部署示例应用程序**。
+
+image::/图片2/111图片/已部署示例应用程序.png[已部署示例应用程序]
+
+---

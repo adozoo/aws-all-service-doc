@@ -1,0 +1,214 @@
+
+## 使用cli创建EKS集群基于EC2
+
+== 先决条件
+
+=== 请**参考官方文档进行安装配置**
+
+=== 安装 AWS CLI
+
+> - https://docs.aws.amazon.com/zh_cn/cli/latest/userguide/getting-started-install.html[AWS CLI 官方文档]
+
+=== 安装 ECS CLI
+
+> - https://docs.aws.amazon.com/zh_cn/AmazonECS/latest/developerguide/ECS_CLI_installation.html[ECS CLI 官方文档]
+
+=== 安装 kubectl
+
+> - https://docs.aws.amazon.com/zh_cn/zh_cn/eks/latest/userguide/install-kubectl.html[kubectl 官方文档]
+
+=== 安装 eksctl
+
+> - https://docs.aws.amazon.com/zh_cn/zh_cn/eks/latest/userguide/eksctl.html[eksctl 官方文档]
+> - **验证安装版本信息**
+
+image::/图片/85图片/检查版本.png[检查版本]
+
+---
+
+== 实验步骤
+
+=== 创建 IAM 用户
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 IAM**
+> - 单击**``添加用户``**该按钮以**创建新的 IAM 用户**。
+
+image::/图片/59图片/创建用户.png[创建用户]
+
+> - 在**添加用户**部分，**设置用户详细信息**：
+> - 用户名：**``EKSTEST``**
+> - 在选择 **AWS 访问类型**部分，选择 **AWS 凭证类型**为**``访问密钥 - 编程访问和密码 - AWS 管理控制台访问``**
+
+image::/图片/85图片/添加用户.png[添加用户]
+
+> * 单击**下一步**
+> - 设置权限：现在，您可以看到**策略列表**。
+> - 单击**直接附加现有策略**，搜索**``AdministratorAccess``**并选择它
+> - 现在点击 **下一页：标签**按钮。**无需更改**
+> - 单击**"下一步：审核"**按钮。
+> - **查看选择是否有误**，然后单击**"创建用户"**。
+> - 会得到**访问密钥 ID-私有访问密钥和用户密码**
+> - 请**保存好它**
+
+---
+
+
+=== 配置本地电脑中的 AWS CLI 和 ECS CLI
+
+> - 配置 AWS CLI
+> * 输入**``aws configure``**命令
+> - 配置**访问密钥 ID-私有访问密钥**：
+> * 将 **IAM 用户**的**访问密钥 ID**与**私有访问密钥**复制到**相应的命令**中，然后按 [Enter] 键**确认**
+
+image::/图片/85图片/awscli配置.png[awscli配置]
+
+> - 配置 ECS CLI
+> * 语法：**``ecs-cli configure profile --profile-name profile_name --access-key $AWS_ACCESS_KEY_ID --secret-key $AWS_SECRET_ACCESS_KEY``**
+> * 示例：**``ecs-cli configure profile --profile-name test --access-key AKIAT5Y7PDISOVKMBZ7S --secret-key 
+WFOxjwe03EbIMv/+Qdk1EO0tQWVOXPRvaWjR7bVI``**
+> - 注意：请将**访问密钥 ID**与**私有访问密钥替换为自己的IAM用户信息**
+
+
+image::/图片/85图片/ecscli配置.png[ecscli配置]
+
+---
+
+=== 使用命令的方式创建 EKS 集群
+
+> - 创建EKS集群，请**输入以下命令**：
+
+----
+eksctl create cluster \
+--name testManagedCluster \
+--region us-east-1 \
+--with-oidc \
+--managed
+----
+
+image::/图片/86图片/创建eks.png[创建eks]
+
+> - 注意：创建集群**大约需要 25 分钟左右**。
+
+image::/图片/86图片/创建完成.png[创建完成]
+
+> - 创建完成后**回到浏览器EKS控制台**中**验证**
+
+image::/图片/86图片/检查.png[检查]
+
+---
+
+=== 使用 Kubernetes 命令验证EKS集群
+
+> - 请**依次输入**以下**命令进行验证EKS集群**
+
+----
+  # Test your configuration
+  kubectl get svc
+
+  # View your cluster nodes
+  kubectl get nodes -o wide
+
+  # View the workloads running on your cluster
+  kubectl get pods --all-namespaces -o wide
+
+  # Deploy a sample Linux workload
+  # Create a Kubernetes namespace for the sample app
+  kubectl create namespace my-ec2-namespace
+----
+
+image::/图片/86图片/getsvc.png[getsvc]
+
+> - **创建Kubernetes服务**和**部署**
+> - 创建一个名称为**sample-service-2**的yaml文件
+> * **``vim sample-service-2.yaml``**
+
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  namespace: my-ec2-namespace
+  labels:
+    app: my-app
+spec:
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  namespace: my-ec2-namespace
+  labels:
+    app: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: helloeks
+        image: registry.hub.docker.com/vbloise3/helloeks
+        ports:
+        - containerPort: 8000
+----
+
+
+> - **部署 Kubernetes**
+
+----
+  # from the eks-lab directory, deploy the application
+  kubectl apply -f sample-service-2.yaml
+
+  # View all resources that exist in the my-ec2-namespace namespace
+  kubectl get all -n my-ec2-namespace
+
+  # View the details of the deployed service
+  kubectl -n my-ec2-namespace describe service my-service
+
+  # View the details of one of the pods that was deployed
+  kubectl -n my-ec2-namespace describe pod [具体的pod ID]
+
+  # Execute a shell on one of the pods
+  kubectl exec -it [具体的pod ID] -n my-ec2-namespace -- /bin/bash
+
+  # View the DNS resolver configuration file
+  cat /etc/resolv.conf
+
+  # Disconnect from the pod
+  exit
+
+  # Remove the sample service, deployment, pods, and namespace
+  kubectl delete namespace my-ec2-namespace
+
+  # Delete the cluster
+  eksctl delete cluster --name testManagedCluster
+----
+
+
+image::/图片/86图片/delete.png[delete]
+
+> - **验证完成**，现在你**已成功的使用**``cli``的方式**创建了基于EC2的EKS集群**
+> - 并**使用 ``Kubernetes`` 命令**成功**验证EKS集群运行正常**
+
+---

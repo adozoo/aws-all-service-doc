@@ -1,0 +1,150 @@
+
+## Amazon EKS 中创建集群并安装 kubectl
+
+=== 什么是 Amazon EKS？
+
+> - 它是一个**托管容器服务**，用于**运行和扩展 Kubernetes 应用程序**。
+> - Amazon EKS，即 Elastic Kubernetes Service，可以通过**三种方式使用**：
+> * 在**云中使用 Amazon EKS 部署应用程序**：**使用 AWS Fargate** 或 **Amazon EC2**
+> * 随时随地**使用 Amazon EKS 部署应用程序**：适用于**您的内部部署基础设施**
+> * 使用您**自己的工具部署应用程序**：使用**裸机**、**虚拟机**和 **Amazon EC2 实例**
+> - 由于 EKS 是**一项托管服务**，因此它允许**您在 AWS 上运行 Kubernetes**，而**无需安装 Kubernetes**。
+> - 它**跨多个可用区预置**和**扩展控制平面**、**API 服务器**和**后端持久层**，以实现**高可用性和容错能力**。此外，它会**自动检测并替换运行状况不佳的控制平面节点**以**进行修补**。
+> - Amazon EKS 与**许多 AWS 服务集成**，例如用于**负载均衡的 ELB**、用于**身份验证的 IAM**、用于**隔离资源的 Amazon VPC** 和用于**日志记录的 CloudTrail**。
+
+=== 架构图
+
+image::/图片/84图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 为 EKS 集群创建 IAM 角色
+
+
+> - 导航到**``IAM``**
+> - 在**左侧菜单**中，单击**``角色``** 。单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:``EKS - Cluster``**
+
+image::/图片/84图片/创建IAM.png[创建IAM]
+
+> * 单击**下一步**
+> - 添加权限：**无需更改**。
+> - 单击**下一步**
+> - 角色名称：输入 **``EKSrole``**
+> - 您**已成功**按名称 EKSrole 创建了一个 IAM 角色。
+> * 注意：您可以使用**其他名称创建角色**
+> - **单击**刚刚创建的IAM角色**``EKSrole``**
+> - 权限选项卡点击**添加权限**下拉菜单中的**创建内联策略**选项
+> - 将下方**代码复制并粘贴到 JSON 中**。
+
+```json
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Sid": "VisualEditor10",
+              "Effect": "Allow",
+              "Action": [
+                  "iam:UpdateAssumeRolePolicy",
+                  "iam:CreateRole",
+                  "iam:AttachRolePolicy",
+                  "iam:PutRolePolicy",
+                  "iam:AddRoleToInstanceProfile",
+                  "iam:PutGroupPolicy",
+                  "iam:PutRolePermissionsBoundary",
+                  "iam:PassRole",
+                  "iam:PutUserPermissionsBoundary",
+                  "iam:CreatePolicy",
+                  "iam:CreateServiceLinkedRole"
+              ],
+              "Resource": "*"
+          },
+          {
+              "Sid": "VisualEditor0",
+              "Effect": "Allow",
+              "Action": "iam:CreateServiceLinkedRole",
+              "Resource": "*",
+              "Condition": {
+                  "StringLike": {
+                      "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
+                  }
+              }
+          }
+      ]
+  }
+```
+
+> - 单击**查看策略**。
+> - 名称：**``EKSpopolicy``**
+> - 最后点击**创建策略**按钮以**添加内联策略**。
+
+---
+
+=== 创建 EKS 集群
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 EKS**
+> - 在 EKS 的主页上，单击**添加集群**下拉菜单中的**创建**选项。
+> - 步骤 1，**配置集群**，名称输入**``aws``**，将 Kubernetes 版本**保留为默认**，并且将**选择刚刚创建的IAM角色**。
+
+image::/图片/84图片/配置集群.png[配置集群]
+
+> - 将**其他选项保留为默认值**，然后单击下面的**下一个**按钮。
+> - 步骤 2，**指定联网**，选择 VPC 为**默认 VPC**。
+> - 选择**所有子网**，然后**选择 VPC 的默认安全组**。
+
+image::/图片/84图片/联网.png[联网]
+
+> - 集群终端节点访问：**``公有``**
+> - 将**其他选项保留为默认值**，然后单击**下一个**按钮。
+> - 步骤 3，**配置日志记录**，将**所有选项保留为默认值**，然后单击**下一个**按钮。
+> - 步骤 4，**查看和创建**，单击**创建**按钮。
+> - 注意：创建集群**大约需要 10-15 分钟**。
+> - 现在**已创建群集**。
+
+image::/图片/84图片/EKS创建完成.png[EKS创建完成]
+
+---
+
+=== 在 CloudShell 中创建环境
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 单击右上角 AWS 菜单栏上的**图标 （Cloud Shell）**。
+> - 浏览器中将**打开一个新选项卡**，如果您看到一条**指向 Cloud shell 的欢迎消息**，请单击该消息中的**"关闭"**按钮。
+> - 您将在屏幕上看到一条**正在创建环境的消息**。
+
+image::/图片/84图片/创建cloudshell.png[创建cloudshell]
+
+> - 等待几分钟以**完成环境创建**。创建环境后，您就可以**使用终端了**。
+
+image::/图片/84图片/cloudshell创建完成.png[cloudshell创建完成]
+
+---
+
+=== 在 AWS CloudShell 上安装 kubectl
+
+> - 在 CloudShell 上**准备好环境后**，从 Amazon S3 **下载集群 Kubernetes 版本的 Amazon EKS kubectl 二进制文件**。为此，请**运行以下命令**：
+> * **``curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl``**
+> - 将执行权限**应用于二进制文件**。
+> * **``chmod +x ./kubectl``**
+> - 将二进制文件**复制到 PATH 中的文件夹中**。如果您**已经安装了 kubectl 的某个版本**，那么我们**建议您创建一个 $HOME/bin/kubectl**，并确保$HOME/bin 在您的``$PATH``**排在第一位**。
+> * **``mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin``**
+> - 安装 kubectl 后，可以使用以下命令验证其版本：
+> * **``kubectl version --short --client``**
+
+---
+
+=== 配置 AWS CloudShell 以与您的集群进行通信
+
+> - 在 CloudShell 上准备好环境后，您可以为集群**创建一个 ``kubeconfig`` 文件**。此文件中的设置**使 ``kubectl CLI`` 能够与您的集群进行通信**。
+> - 要创建**``kubeconfig``**文件，请**运行以下命令**：
+> * **``aws eks update-kubeconfig --region us-east-1 --name aws``**
+> * 注意：如果您的集群名称**不是 ``aws``**，请在上述命令中**更新您的集群名称**。
+> - 使用以下命令**测试您的配置**：
+> * **``kubectl get svc``**
+
+image::/图片/84图片/验证.png[验证]
+
+---

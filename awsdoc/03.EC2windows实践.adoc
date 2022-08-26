@@ -1,0 +1,160 @@
+
+## EC2windows实践
+
+=== 架构图
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/rdc_architecture.png[架构图]
+
+=== 实验步骤
+
+==== (1)控制台启动实例
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E6%8E%A7%E5%88%B6%E5%8F%B02.png[控制台]
+
+==== (2)选择系统镜像
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/windows%E7%B3%BB%E7%BB%9F%E9%95%9C%E5%83%8F.png[选择系统镜像]
+
+==== (3)选择实例类型
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE1.png[选择实例类型]
+
+==== (4)配置实例
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE%E5%AE%9E%E4%BE%8B.png[配置实例]
+
+==== (5)添加存储
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/30GB%E5%82%A8%E5%AD%98.png[存]
+
+==== (6) 添加标签
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E9%85%8D%E7%BD%AE3.png[添加标签]
+
+==== (7) 配置安全组
+
+> - 添加 RDP：
+
+----
+  . 选择类型： 选择 RDP
+  . 协议：TCP
+  . 端口范围：3389
+  . 源：选择"任何位置"
+----
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/RDP%E5%AE%89%E5%85%A8%E7%BB%84.png[配置安全组]
+
+==== (8) 审核启动
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E6%A3%80%E6%9F%A5%E6%97%A0%E8%AF%AF.png[审核启动]
+
+> - 选择现有密钥对，确认并单击启动实例
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E5%90%AF%E5%8A%A8%E5%AE%9E%E4%BE%8B.png[启动实例]
+
+---
+
+=== 远程桌面连接连接 EC2 windows
+
+==== MAC：可下载 `Microsoft Remote Desktop` 进行连接
+
+==== https://www.macwk.com/soft/microsoft-remote-desktop[Microsoft Remote Desktop下载]
+
+==== WINDOWS：使用系统自带 `远程桌面连接`
+
+
+> - 等待状态检查完成,选择您的 EC2 实例，单击"连接"
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E7%AD%89%E5%BE%85%E7%8A%B6%E6%80%81%E6%A3%80%E6%9F%A5.png[状态检查]
+
+> - 选择"RDP客户端",单击获取密码以获取密码，这将帮助您在启动实例时登录
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E8%BF%9E%E6%8E%A5%E7%95%8C%E9%9D%A2.png[获取密码]
+
+> - 上传启动EC2密钥进行解密
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E8%8E%B7%E5%8F%96%E5%AF%86%E7%A0%81.png[解密]
+
+> - 用户名和密码将显示在对话框中
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E5%8F%AF%E4%BB%A5%E8%BF%9E%E6%8E%A5%E4%BA%86.png[连接了]
+
+> - 确保您的计算机上已有 `远程桌面应用程序`
+> - 打开 `远程桌面应用程序`
+> - 键入 `Public DNS`
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E6%89%93%E5%BC%80%E8%BF%9E%E6%8E%A5%E5%B7%A5%E5%85%B7.png[]
+
+> - 键入 `用户名` `密码` 连接
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E8%BE%93%E5%85%A5%E5%AF%86%E7%A0%81%E8%BF%9E%E6%8E%A5.png[连接]
+
+---
+
+=== EC2 windows 安装 IIS 服务器
+
+> - 我们将安装一个 IIS 服务器，以便我们可以使用它来启动网页。
+> - 单击左下角的"Windows 开始"按钮，然后键入cmd。
+> - 右键单击命令提示符，然后选择"以管理员身份运行"
+
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E8%BF%9E%E6%8E%A5%E6%88%90%E5%8A%9F.png[IIS 服务器]
+
+> - 键入命令  **DISM /online /enable-feature /featureName:IIS-DefaultDocument /All**，然后按 Enter 安装 IIS 服务器
+> - 进度达到 100% 后，您将看到一条消息"操作已成功完成"。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/CMD%E5%AE%89%E8%A3%85IIS.png[安装 IIS 服务器]
+
+> - 关闭命令提示符，然后再次单击"搜索"按钮并键入 IIS，现在您将看到 Internet 信息服务管理器 （IIS）已成功安装
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E6%90%9C%E7%B4%A2IIS.png[搜索IIS]
+
+---
+
+=== 测试IIS默认网页
+
+> - 我们将尝试打开提供的默认网页。
+> - 单击"Internet 信息服务管理器"。
+> - 双击您在"起始页"下看到的第一个名称以将其展开，现在再次双击"站点"以查看"默认网站"。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E6%89%93%E5%BC%80IIS.png[测试IIS]
+
+> - 单击"默认网站"，然后在面板右侧的"浏览网站"下，单击"浏览*：80（http）"
+> - 现在，您将被重定向到默认网页，它看起来像下面显示的图片
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E9%BB%98%E8%AE%A4%E9%A1%B5%E9%9D%A2.png[默认网站]
+
+---
+
+=== 创建自定义网页
+
+> - 我们将创建自己的网页。
+> - 在搜索栏中键入记事本，单击它打开
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E6%90%9C%E7%B4%A2%E8%AE%B0%E4%BA%8B%E6%9C%AC.png[记事本]
+
+> - 现在，将以下html代码复制并粘贴到记事本中以创建自定义网页
+
+```html
+  <html>
+  <body>
+  <h1>Hello World!</h1>
+  <h2>You have successfully created a custom web page.</h2>
+  </body>
+  </html>
+```
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E7%BC%96%E5%86%99HTML.png[编写HTML]
+
+> - 单击"文件"并选择"另存为"，将文件名指定为 `index.html`
+> - 保存地址为，双击左侧的C盘，双击 `inetpub`
+> - 双击 `wwwroot` ，单击"保存"
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E4%BF%9D%E5%AD%98HTML.png[保存]
+
+> - 现在返回到您在上一步中打开的默认网页，然后单击刷新。
+> - 现在，您将能够看到我们的 `自定义html` 页面，如下所示。
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/03%E5%9B%BE%E7%89%87/%E5%86%8D%E6%AC%A1%E6%9F%A5%E7%9C%8B%E9%BB%98%E8%AE%A4%E9%A1%B5%E9%9D%A2.png[默认页面]
+
+---
+

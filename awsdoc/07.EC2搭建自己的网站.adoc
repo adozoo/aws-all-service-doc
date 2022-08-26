@@ -1,0 +1,565 @@
+
+## EC2搭建自己的网站
+
+=== 详细信息
+
+> - 本实验将引导您逐步完成启动 EC2 实例，然后在其上**安装 WordPress **的过程。
+> - 您将通过终端上的** SSH 执行这些操作**。安装Wordpress后，您将**登录到Wordpress**网站
+
+=== 架构图
+
+image::/图片/07图片/架构图.png[架构图]
+
+=== 实验步骤
+
+==== (1)控制台启动实例
+
+image::/图片/07图片/控制台2.png[控制台启动实例]
+
+==== (2)选择系统镜像
+
+image::/图片/07图片/控制台3.png[选择系统镜像]
+
+==== (3)选择实例类型
+
+image::/图片/07图片/配置1.png[选择实例类型]
+
+==== (4)配置实例
+
+image::/图片/07图片/配置实例.png[配置实例]
+
+==== (5)添加存储
+
+image::/图片/07图片/配置2.png[添加存储]
+
+==== (6)添加标签
+
+image::/图片/07图片/配置3.png[添加标签]
+
+==== (7) 配置安全组
+
+> - 添加 SSH：
+
+----
+  . 选择类型： 选择 SSH
+  . 协议：TCP
+  . 端口范围：22
+  . 源：选择"任何位置"
+----
+
+> - 添加 HTTP：
+
+----
+  . 选择类型：选择 HTTP
+  . 协议：TCP
+  . 端口范围：80
+  . 源：选择"任何位置"
+----
+
+> - 添加 HTTPS：
+
+----
+  . 选择类型：选择 HTTPS
+  . 协议：TCP
+  . 端口范围：443
+  . 源：选择"任何位置"
+----
+
+image::/图片/07图片/安全组.png[安全组]
+
+> - 点击下一步 `审核和启动`
+
+==== (8) 审核启动
+
+> - **检查**所有选定的设置，**无误点击启动**
+> - 选择现有密钥对，确认并单击**启动实例**
+
+image::/图片/07图片/现有密钥.png[现有密钥]
+
+==== (9) 等待初始化完成
+
+> - **SSH 进入 EC2 实例**
+
+image::/图片/07图片/进入EC2.png[进入EC2]
+
+---
+
+=== 前期准备
+
+> - 要确保所有程序都是**最新**的，请运行以下命令：
+
+----
+  sudo yum update -y
+----
+
+> - 下一步是获取最新版本的**MariaDB（MySQL的社区开发的分支）和PHP**。运行以下命令以同时**安装**它们
+
+----
+  sudo amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+----
+
+> - 现在让我们**安装Apache服务器和MariaDB**。
+
+----
+  sudo yum install -y httpd mariadb-server
+----
+
+> - **启动 Apache 服务器**
+
+----
+  sudo systemctl start httpd
+----
+
+> - 我们还可以在每次使用以下命令引导实例时使apache服务器**自动启动**
+
+----
+  sudo systemctl enable httpd
+----
+
+> - 使用以下命令**测试Apache服务器**是否启用
+
+----
+  sudo systemctl is-enabled httpd
+----
+
+> - 现在是时候**测试 Apache 服务器**的示例测试页是否正在运行了。
+> - 复制您的EC2公共IPv4地址，然后在浏览器中输入并按回车键。如果您**看到下面的测试页面**，则表示Apache服务器**已成功安装**。
+
+image::/图片/07图片/阿帕奇页面.png[阿帕奇页面]
+
+> - **如果测试页未打开，则您在安装和启动 Apache 服务器时犯了一些错误。请正确检查上述步骤，然后再次执行**
+
+---
+
+=== 设置权限和 LAMP 服务器
+
+> - 接下来的步骤是**设置文件权限**。
+> - 将用户（ec2-user）**添加到 apache 组**
+
+----
+  sudo usermod -a -G apache ec2-user
+----
+
+> - **注销并重新登录**以验证新组的成员身份
+
+----
+  . 执行注销命令或关闭窗口
+    exit
+  . 再次 SSH 进入实例
+  . 要验证成员身份，请输入以下命令
+    groups
+----
+
+> - 现在将 /var/www 的组**所有权及其内部内容更改**为 apache 组：
+
+----
+  sudo chown -R ec2-user:apache /var/www
+----
+
+> - 要**添加组写入权限**，请在将来的**子目录上设置组 ID**，并更改 /var/www 及其子目录的**目录权限**
+
+----
+  sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \;
+----
+
+> - 要**添加组写入权限**，请以**递归方式**更改 /var/www 及其子目录的文件权限：
+
+----
+  find /var/www -type f -exec sudo chmod 0664 {} \;
+----
+
+> - 现在，**EC2 用户**（以及 apache 组的任何未来成员）可以在 Apache 文档的根目录中添加、删除和编辑文件。这允许您添加静态网站或PHP应用程序等内容。
+> - 现在让我们**测试 LAMP 服务器**。
+> - 我们将在Apache文档的根目录中**创建一个PHP文件**。这将成为我们的主页，以**测试一切是否按预期工作**。
+
+----
+  echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
+----
+
+> - 要**测试示例 PHP 页面**，请在浏览器中打开一个选项卡，然后在公共 IPv4 地址后输入"/phpinfo.php" ，如下图所示。
+
+image::/图片/07图片/PHP页面.png[PHP页面]
+
+> - 现在我们已经测试了示例站点，我们可以**删除phpinfo.php文件**。
+> - **让我们删除 phpinfo.php 文件。我们只是用它来测试，出于安全原因，这些细节不应该在互联网上提供。**
+
+----
+  rm /var/www/html/phpinfo.php
+----
+
+
+---
+
+
+
+=== 数据库服务器安全详细信息
+
+> - 要**启动 MariaDB 服务器**
+
+----
+  sudo systemctl start mariadb
+----
+
+> - 要**安装MySQL**，请运行mysql_secure_installation
+
+----
+  sudo mysql_secure_installation
+----
+
+> - **详情**
+
+----
+  . 当系统提示输入密码时，键入 root 帐户的密码。（默认情况下，root 帐户没有密码）。完成后按 Enter 键。
+  . 键入 Y 以设置密码，然后重新键入密码以进行确认。
+  . . 注意：记下您设置的新密码，因为将来会用到它。
+  . 键入 Y 以删除匿名用户帐户。
+  . 键入 Y 以禁用远程根登录。
+  . 键入 Y 以删除测试数据库。
+  . 键入 Y 以重新加载权限表并保存更改。
+----
+
+image::/图片/07图片/配置玛丽亚DB.png[配置玛丽亚DB]
+
+> - **可选**：我们还可以使 MariaDB 服务器在**每次启动时启动**。如果要启用此功能，请键入以下命令：
+
+----
+  sudo systemctl enable mariadb
+----
+
+---
+
+
+
+=== 安装用于使用phpMyAdmin处理MySQL的Web管理
+
+> - 让我们**安装所需的依赖项**
+
+----
+  sudo yum install php-mbstring php-xml -y
+----
+
+> - **重新启动 Apache 服务器**
+
+----
+  sudo systemctl restart httpd
+----
+
+> - 我们还需要**重新启动php-fpm**
+
+----
+  sudo systemctl restart php-fpm
+----
+
+> - **导航到 Apache 文档的根目录** /var/www/html
+
+----
+  cd /var/www/html
+----
+
+> - 我们必须为phpMyAdmin版本**选择一个最新的源码包**。要将文件直接**下载到您的实例**，请复制链接并将其粘贴到 wget 命令中，如下所示
+
+----
+  wget https://www.phpmyadmin.net/downloads/phpMyAdmin-latest-all-languages.tar.gz
+----
+
+> - **创建一个phpMyAdmin文件夹**，并使用以下命令将包**解压缩到其中**
+
+----
+  mkdir phpMyAdmin && tar -xvzf phpMyAdmin-latest-all-languages.tar.gz -C phpMyAdmin --strip-components 1
+----
+
+> - **删除 phpMyAdmin-latest-all-languages.tar.gz**
+
+----
+  rm phpMyAdmin-latest-all-languages.tar.gz
+----
+
+> - 运行以下命令以**确保MySQL正在运行**
+
+----
+  sudo systemctl start mariadb
+----
+
+> - 在 Web 浏览器中，**键入以下 URL 以查看 php 管理页面**
+
+----
+  http://yourIPAddress/phpMyAdmin
+----
+
+> - 使用您的root用户名和我们之前**创建的MySQL密码登录**您的phpMyAdmin**安装**
+
+image::/图片/07图片/phpmyadmin界面.png[phpmyadmin界面]
+
+> - 使用root凭据**登录后**，它将**如下所示**
+
+image::/图片/07图片/phpmyadmin界面1.png[phpmyadmin界面1]
+
+---
+
+
+=== 安装WordPress
+
+> - **返回到终端和 SSH 进入实例**。（如果您位于 var/www/html 中，请使用 cd 命令转到父目录）
+
+----
+  cd ~
+----
+
+> - **下载并解压缩WordPress安装包**。要使用wget下载最新的WordPress安装包，请使用以下命令始终**下载最新版本**
+
+----
+  wget https://wordpress.org/latest.tar.gz
+----
+
+> - **解压缩和取消存档安装包**。安装文件夹**解压缩到一个名为 wordpress 的文件夹中**
+
+----
+  tar -xzf latest.tar.gz
+----
+
+> - 让我们为WordPress**安装创建数据库用户和数据库**
+> - WordPress需要将**博客文章和用户评论等信息存储在数据库中**。以下过程有助于我们创建博客的数据库以及有权读取和保存信息的用户。
+> - 启动**数据库服务器**以确保MySQL正在运行
+
+----
+  sudo systemctl start mariadb
+----
+
+> - 以 root 用户身份**登录到数据库服务器**。出现提示时，**输入数据库 root 密码**。
+
+----
+  mysql -u root -p
+----
+
+image::/图片/07图片/登录玛丽亚DB.png[登录玛丽亚DB]
+
+> - 我们将为**MySQL数据库创建用户和密码**。WordPress使用这些值与MySQL数据库**进行通信**。输入以下内容以**创建唯一的用户名和密码**。
+
+----
+  CREATE USER 'wordpress-user'@'localhost' IDENTIFIED BY '123';
+----
+
+> - 注意：**请务必记下用户名和密码，因为将来会使用**。
+> - 接下来，我们将**创建一个数据库**。确保为数据库指定一个描述性的、有意义的名称（如 wordpress-db）。
+
+----
+  CREATE DATABASE `my-wordpress-db`;
+----
+
+> - 注： 以下命令中数据库名称周围的标点符号称为**反引号**。反引号 （`） 键通常位于标准键盘上的 Tab 键**上方**。
+> - 请务必**记下数据库名称**。
+> - 您可以在 phpMyAdmin 中看到**创建的数据库**
+
+----
+  http://YourIPAddress/phpMyAdmin/index.php
+----
+
+image::/图片/07图片/phpmyadmin界面2.png[phpmyadmin界面2]
+
+> - 我们必须将数据库的完全权限**授予**我们之前创建的WordPress用户。
+
+----
+  GRANT ALL PRIVILEGES ON `my-wordpress-db`.* TO "wordpress-user"@"localhost";
+----
+
+> - 我们必须**刷新数据库权限**才能获取所有更改。
+
+----
+  FLUSH PRIVILEGES;
+----
+
+> - 最后，我们将**退出 mysql 客户端**
+
+----
+  exit
+----
+
+
+
+---
+
+
+=== 创建和编辑WordPress配置文件
+
+> - WordPress 安装文件夹包含一个名为 wp-config-sample.php 的示例**配置文件**。让我们复制此文件并对其进行编辑以适合我们的**特定配置**。
+> - 将 wp-config-sample.php 文件的内容复制到名为 wp-config.php 的新文件中。这将**创建一个新的配置文件**，并保持原始示例文件不变作为**备份**。
+
+----
+  cp wordpress/wp-config-sample.php wordpress/wp-config.php
+----
+
+> - 我们可以使用名为 nano 的文本编辑器**编辑** wp-config.php 文件。要在 nano 中打开**新的配置文件**
+
+----
+  nano wordpress/wp-config.php
+----
+
+> - 找到定义DB_NAME的行，并将database_name_here更改为我们**创建的数据库名称**。这将为WordPress安装**创建数据库用户和数据库**：
+
+----
+  define（'DB_NAME'， 'my-wordpress-db'）;
+----
+
+> - 接下来，让我们找到定义DB_USER的行，并将username_here更改为我们**创建的数据库用户**。这将为您的WordPress安装**创建数据库用户和数据库**。
+
+----
+  define（'DB_USER'， 'wordpress-user'）;
+----
+
+> - 找到定义DB_PASSWORD的行，并将password_here更改为我们**创建的密码**。这将为您的WordPress安装**创建数据库用户和数据库**。
+
+----
+  define（'DB_PASSWORD'， '123'）;
+----
+
+image::/图片/07图片/更改wordpress配置文件.png[更改wordpress配置文件]
+
+
+> - 让我们导航到**名为"Authentication Unique Keys and Salts"的部分**。
+> - 这些KEY和SALT值为WordPress用户存储在其本地计算机上的浏览器cookie提供了**一层加密**。基本上，在这里添加**长而随机的值会使您的网站更安全**。
+> - 转到 https://api.wordpress.org/secret-key/1.1/salt/[生产随机值网站] **随机生成一组键值**，您可以将这些键值**复制并粘贴到** wp-config.php 文件中
+
+
+image::/图片/07图片/更改wordpress配置文件1.png[更改wordpress配置文件1]
+
+
+> - **保存文件并退出文本编辑器**。
+> - 现在我们已经解压缩了安装文件夹，创建了MySQL数据库和用户，并自定义了WordPress配置文件，我们准备将安装文件复制到Web服务器的根目录，以便我们可以运行完成安装的安装脚本。
+> - 让我们按名称**创建一个文件夹** mywordpresswebssite 我们将在该文件夹下**复制所有与wordpress相关的文件**：
+
+----
+  mkdir /var/www/html/mywordpresswebssite
+----
+
+将文件**复制到mywordpress网站**：
+
+----
+  cp -r wordpress/* /var/www/html/mywordpresswebssite/
+----
+
+
+---
+
+
+===  为WordPress提供使用永久链接的权限
+
+> - Wordpress需要Apache的.htaccess文件的权限才能使用permalink，但是，默认情况下在Amazon Linux上**不启用此功能**。
+> - 我们需要允许Apache文档根目录中的所有覆盖。为此，我们需要**编辑 httpd.conf 文件**
+
+----
+  sudo nano /etc/httpd/conf/httpd.conf
+----
+
+> - **找到以<Directory "/var/www/html">开头的部分**
+
+----
+  将行为更改为"AllowOverride All"
+----
+
+image::/图片/07图片/httpd配置文件修改.png[httpd配置文件修改]
+
+> - **保存文件并退出文本编辑器**
+> - 接下来，我们将为 Apache Web 服务器**提供文件权限**。应用以下组成员身份和权限（如设置权限和 LAMP 服务器中所述）。
+> - 我们必须将 /var/www 及其**内容的文件所有权授予 apache 用户**：
+
+----
+  sudo chown -R apache /var/www
+----
+
+> - 接下来，将 /var/www 及其内容的组所有权**授予 Apache 组**：
+
+----
+  sudo chgrp -R apache /var/www
+----
+
+> - 我们必须更改 /var/www 及其子目录的目录权限，以添加组写入权限，并在将来的**子目录中设置组 ID**。
+
+----
+  sudo chmod 2775 /var/www
+  find /var/www -type d -exec sudo chmod 2775 {} \;
+  注意： 等待，直到执行命令运行结束并返回命令提示符。
+----
+
+> - 以递归方式更改 /var/www 及其子目录的文件权限以**添加组写入权限**。
+
+----
+  find /var/www -type f -exec sudo chmod 0664 {} \;
+  注意： 等待，直到执行命令运行结束并返回命令提示符。
+----
+
+> - **重新启动** Apache Web 服务器以选取新的组和权限。
+
+----
+  sudo systemctl restart httpd
+----
+
+
+
+---
+
+
+=== 运行WordPress安装脚本
+
+> - 现在我们终于准备好**安装WordPress了**。
+> - 我们将使用 systemctl 命令来确保 httpd 和数据库服务在每次系统**引导时启动**（如果尚未启动）。
+
+----
+  sudo systemctl enable httpd && sudo systemctl enable mariadb
+----
+
+> - 我们必须**验证数据库服务器**是否正在运行。
+
+----
+  sudo systemctl status mariadb
+----
+
+> - 如果数据库服务**未运行**，请启动它。
+
+----
+  sudo systemctl start mariadb
+----
+
+> - 还要**验证您的 Apache Web 服务器 （httpd） 是否正在运行**。
+
+----
+  sudo systemctl status httpd
+----
+
+> - 如果 httpd 服务**未运行**，请启动它。
+
+----
+  sudo systemctl start httpd
+----
+
+> - 在 Web 浏览器中，键入**以下 URL 以查看 php 管理页面**：
+
+----
+  http://YourIPAddress/mywordpresswebssite
+----
+
+> - 您应该**看到WordPress安装脚本页面**。提供WordPress安装所需的信息。选择**继续完成安装**
+
+image::/图片/07图片/安装wordpress.png[安装wordpress]
+
+image::/图片/07图片/安装wordpress2.png[安装wordpress2]
+
+> - **安装Wordpress后**，单击下一页上的**登录按钮**。
+
+image::/图片/07图片/登录wordpress.png[登录wordpress]
+
+> - **输入用户名登录密码**
+
+image::/图片/07图片/登录wordpress2.png[登录wordpress2]
+
+
+> - 您将看到Wordpress的**管理页面**，**点击查看站点**。
+
+image::/图片/07图片/wordpress后台.png[wordpress后台]
+
+> - **在这里，您将看到我们创建的网站**
+
+image::/图片/07图片/wordpress主页.png[wordpress主页]
+
+> - **这样就完成了创建您自己的Wordpress网站**
+
+---

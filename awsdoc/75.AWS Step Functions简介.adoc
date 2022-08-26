@@ -1,0 +1,133 @@
+
+## AWS Step Functions简介
+
+=== AWS Step Functions
+
+> - AWS Step Functions 是一款**无服务器函数编排服务**，可让您轻松地**将 AWS Lambda 函数**和**多个 AWS 服务排序到业务关键型应用程序中**。
+> - 您可以**创建和运行**一系列**检查点和事件驱动的工作流**，这些工作流在**可视界面的帮助下维护应用程序状态**。
+> - 一个步骤的输出**充当下一个步骤的输入**。应用程序中的**每个步骤都按业务逻辑定义的顺序执行**。
+> - 编排一系列单独的**无服务器应用程序**、**管理重试**和**调试失败可能具有挑战性**。
+> - Step Functions **管理顺序、错误处理、重试逻辑和状态**，从而**减轻您的大量操作负担**。
+
+=== 架构图
+
+image::/图片/75图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 创建 IAM 角色
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 导航到**``IAM``**
+> - 在**左侧菜单**中，单击**``角色``** 。单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Step Functions**
+
+image::/图片/75图片/创建IAM.png[创建IAM]
+
+> * 单击**下一步**
+> - 添加权限：无需更改。
+> - 单击**下一步**
+> - 角色名称：输入 **``stepFunction_lambda_role``**
+> - 您**已成功**按名称 stepFunction_lambda_role 创建了一个 IAM 角色。
+> * 注意：您可以使用**其他名称创建角色**
+
+---
+
+
+=== 创建 Lambda 函数
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 转到菜单，然后单击 **Lambda**。
+
+image::/图片/09图片/导航到Lambda.png[导航到Lambda]
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``MyStepFunction_lambda``**
+> - 运行时：**``Python 3.9``**
+> - 角色：在权限部分中，单击**"创建具有基本 Lambda 权限的新角色"**。
+> * 点击**创建函数**该按钮。
+> - **成功创建 Lambda 函数后**，它将类似于下面的**屏幕截图**：
+
+image::/图片/75图片/lambda.png[lambda]
+
+
+> - 函数代码 ：将现有代码**替换为以下内容**，然后单击**"部署"**。
+
+```py
+  import json
+  def lambda_handler(event, context):
+      # TODO implement
+      return {
+          'statusCode': 200,
+          'body': json.dumps('You have successfully invoked the lambda function from Step Function.')
+      }
+```
+
+==== 复制您的 Lambda 函数 ARN 并将其放置在文本编辑器中。此 ARN 将在以后使用
+
+---
+
+=== 在Step Functions中创建状态机
+
+> - 顶部的菜单**导航到Step Functions**，然后单击左侧菜单**状态机**部分。
+> - 点击**创建状态机**按钮。
+> - 选择创作方法：选择**``用代码编写工作流``**
+> - 类型 ： 选择**``标准``**
+> - 定义：将现有的状态机JSON代码**替换为下面的代码**。
+
+```json
+  {
+    "Comment": "Sample State machine code to invoke a lambda function",
+    "StartAt": "invokeLambda",
+    "States": {
+      "invokeLambda": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:us-east-1:144976996549:function:MyStepFunction_lambda",
+        "End": true
+      }
+    }
+  }
+```
+
+> - 现在，将**``Resource``**的值**替换为您复制并放置在文本编辑中的 Lambda ARN**。
+> - 现在在右侧，**流程图如下**：
+
+image::/图片/75图片/定义.png[定义]
+
+> - 现在点击**下一个**按钮。
+> - 指定**详细信息**：
+> * 名称：输入**``MyStateMachine``**
+> * 权限：
+> ** 执行角色 ：选择**``选择现有角色``**
+> ** 现有角色 ： 选择**``stepFunction_lambda_role``**
+> * 将**其他内容保留为默认值**。
+> - 单击**创建状态机**按钮。
+
+---
+
+=== 测试Step Functions
+
+> - 单击**启动执行**按钮。
+> - 新执行：
+> * 名称：输入**``SampleTest1``**
+> * 输入：保留为**默认值**。
+> - 单击**启动执行**按钮。
+> - 在图形检查器图中，**``invokeLambda``**的颜色将**变为绿色（成功）**，如下图所示。
+
+image::/图片/75图片/成功.png[成功]
+
+> - 单击**``invokeLambda``**。
+> - 您将能够在右侧列中看到**详细信息**。
+> - 现在，单击右侧的**"步骤输出"**选项卡，您将看到**Lambda 函数的输出**。
+
+image::/图片/75图片/检查输出.png[检查输出]
+
+
+---
+
+
+
+

@@ -1,0 +1,207 @@
+
+## 创建更改集更新CloudFormation
+
+=== 架构图
+
+image::/图片2/120图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 复制模板创建模板文件
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``EC2InstanceInput.template``**
+
+```json
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Metadata" : {
+    "Instances" : {"Description" : "EC2 instance with t2.micro as instance type"}
+    },
+
+  "Description" : "AWS CloudFormation Sample Template EC2InstanceWithSecurityGroupSample: Create an Amazon EC2 instance running the Amazon Linux AMI. The AMI is chosen based on the region in which the stack is run. This example creates an EC2 security group for the instance to give you SSH access. **WARNING** This template creates an Amazon EC2 instance. You will be billed for the AWS resources used if you create a stack from this template.",
+
+  "Parameters" : {
+
+    "InstanceType" : {
+      "Description" : "WebServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : [ "t2.micro", "t2.small", "t2.medium"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "SSHLocation" : {
+      "Description" : "The IP address range that can be used to SSH to the EC2 instances",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "0.0.0.0/0",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+   }
+  },
+
+  "Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t2.micro"    : { "Arch" : "HVM64"  },
+      "t2.small"    : { "Arch" : "HVM64"  },
+      "t2.medium"   : { "Arch" : "HVM64"  }
+    },
+
+    "AWSInstanceType2NATArch" : {
+      "t2.micro"    : { "Arch" : "NATHVM64"  },
+      "t2.small"    : { "Arch" : "NATHVM64"  },
+      "t2.medium"   : { "Arch" : "NATHVM64"  }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "us-east-1"        : {"HVM64" : "ami-032930428bf1abbff", "HVMG2" : "ami-0aeb704d503081ea6"}
+    }
+
+  },
+
+  "Resources" : {
+    "EC2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : { "Ref" : "InstanceType" },
+        "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] }
+      }
+    },
+
+    "InstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable SSH access via port 22",
+        "SecurityGroupIngress" : [ {
+          "IpProtocol" : "tcp",
+          "FromPort" : "22",
+          "ToPort" : "22",
+          "CidrIp" : { "Ref" : "SSHLocation"}
+        } ]
+      }
+    }
+  },
+
+  "Outputs" : {
+    "PublicIP" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "EC2Instance", "PublicIp" ] }
+    }
+  }
+}
+```
+
+---
+
+=== 创建 CloudFormation 堆栈
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``上传模板文件``**
+> ** 点击**选择文件**按钮，在本地计算机中**选择本实验对应的 ``EC2InstanceInput.template``进行上传**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``DemoStack``**
+> * 参数：
+> ** 实例类型：选择 **``t2.micro（默认）``**
+> ** SSH地址：输入 **``0.0.0.0/0（默认值）``**
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，并点击**创建堆栈**按钮
+> * 注意：请**等待 CloudFormation 创建资源完成**
+
+image::/图片2/120图片/CloudFormation.png[CloudFormation]
+
+---
+
+=== 为 CloudFormation 堆栈创建更改集
+
+> - 在**左侧面板**中，单击**堆栈**。
+> - 要**创建更改集**，请执行**以下任务**
+> * 选择**当前堆栈**。
+> * 单击**堆栈操作**按钮。
+> * 选择**“为现有的堆栈创建更改集”**选项。
+
+image::/图片2/120图片/为当前堆栈创建更改集.png[为当前堆栈创建更改集]
+
+> - 步骤 1，**指定模板**
+> * 先决条件 - 准备模板：**在设计器中编辑模板**
+> * 单击**“在设计器中查看”**。
+> * 编辑器**打开后**，有时可能**不会自动生成图表**，因为我们**使用的是自定义模板**。
+> * 确保**选择 ``JSON`` 作为模板语言**。
+> * 第 1 部分，第 5 行，**更改实例描述的元数据**
+> ** 新描述：**"EC2 instance with t2.medium as instance type"**
+> * 第2部分，更新**参数值**
+> ** 在第 15 行中，将实例类型的默认值更改为**"t2.medium"**
+> ** 在第 20 行中，将变量名称更改为**"HTTPLocation"**。
+> ** 并且，在第 21 行上，将描述更新为**"The IP address range that can be used to HTTP to the EC2 instances"**
+> * 第 3 部分，映射，**无需更改**
+> * 第 4 部分，资源
+> ** EC2 实例部分**没有变化**，因为它**使用映射作为字段**。
+> ** 在第 64 行中，将组说明更新为**"Enable HTTP access via port 80"**
+> ** 在第 67-68 行中的**“安全组入口”**，将 **``FromPort``** 和 **``ToPort``** 更新为 **``80``**
+> ** 在第 69 行中，将 **``CidrIp``** 的引用更改为**"HTTPLocation"**。
+> * 第 5 部分，**输出**
+> ** 在第 76 行中，将变量更改为**"PrivateIp"**。
+> ** 在第 77 行中，将描述更新为**"Private IP address of the newly created EC2 instance"**。
+> ** 最后，在第78行中，将**``GetAtt``**函数更新为**"EC2Instance"**，**"PrivateIp"**。
+> * 完成所有更改后，单击**“验证模板”**按钮**进行验证**。
+
+image::/图片2/120图片/验证模板.png[验证模板]
+
+> - 验证后，单击**“创建堆栈”**按钮。
+> - 您将被**重定向回“指定模板”页面**。
+> - 然后单击**下一步**按钮。
+> - 步骤 2，**指定堆栈详细信息**
+> * 现在，在上一步中完成的**所有更改都将在我们更新模板时反映出来**。
+> * 注意：如果**未选择t2.medium**，请从**下拉列表中选择**。
+> * 单击**“下一步”**按钮以继续。
+> - 步骤 3，**配置堆栈选项**
+> * 将所有内容**保留为默认值**。
+> * 然后单击**“下一步”**按钮。
+> - 步骤 4，**审核**
+> * 确保步骤 2：指定堆栈详细信息的**第一行为 HTTPLocation 键，0.0.0.0/0 为值**，**第二行为 InstanceType 键，t2.medium 为值**。
+> - 单击**“创建更改集”**按钮，以创建可在**以后执行的更改集**。
+> * 在**弹出窗口**中，将更改集名称重命名为**``DemoStack-ChangeSet``**，然后单击**“创建更改集”**按钮。
+
+image::/图片2/120图片/创建更改集.png[创建更改集]
+
+> - 创建更改集**需要一些时间才能创建**，单击**刷新图标**以**查看``CREATE_COMPLETE``状态**。
+> - 现在，单击右上角的**执行**按钮。
+> - 在**“执行更改集”**弹出窗口中，选择**“回滚所有堆栈资源”**。
+> - 现在单击**“执行更改集”**按钮以**执行更改集**
+> - 更改将**立即应用**，堆栈的状态将**变为``UPDATE_IN_PROGRESS``**。
+> - 最后堆栈的状态将**变为``UPDATE_COMPLETE``**
+
+image::/图片2/120图片/UPDATE.png[UPDATE]
+
+---
+
+=== 检查应用的更新和更改
+
+> - 切换到**资源**选项卡。
+> - **单击 EC2 实例的物理 ID**。
+> - EC2 实例将在**新选项卡中打开**，在这里您可以看到实例类型现**已更新为 ``t2.medium``**。
+
+image::/图片2/120图片/实例类型.png[实例类型]
+
+> - 转到**上一个选项卡**，其中打开了**资源选项卡**，单击实例**安全组的物理ID**。
+> - EC2 安全组将在**新选项卡中打开**，切换到**入站规则**选项卡以**查看 HTTP 为类型**，**80 为端口范围**。
+
+image::/图片2/120图片/安全组.png[安全组]
+
+> - 转到**上一个选项卡**，其中打开了**资源选项卡**，现在切换到**“输出”**选项卡。
+> - 实例的**私有IP**现在与**变量名称**和**描述**一起**显示在输出选项卡中**。
+
+image::/图片2/120图片/输出.png[输出]
+
+---

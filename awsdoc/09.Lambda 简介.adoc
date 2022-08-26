@@ -1,0 +1,224 @@
+
+## Lambda 简介
+
+
+=== Lambda
+
+> - AWS Lambda 是一项**无服务器计算服务**。
+> - 它**无需任何服务器**即可工作，并**允许**我们为任何类型的应用程序执行代码。
+> - 开发人员不必担心要启动的 AWS 资源或管理资源所需的步骤。
+> - 任务的配置**以代码的形式完成**。它们在 Lambda 中实现并在执行时执行。
+> - 预置和管理都由 Lambda 函数负责。
+> - AWS Lambda 支持的语言包括 Node.js、Python、C#、Java 和 Go。
+> - 它允许我们运行代码以响应来自其他 AWS 服务的事件。
+> - 自动缩放是根据**工作负载**的大小完成的。
+> - AWS Lambda 的成本非常低，并且取决于多种因素。它将为每 100 毫秒的运行时收费，也会对代码的执行次数收费。
+> - Lambda 函数执行的允许运行时介于 100 毫秒到 15 分钟之间。
+> - 它提供的资源从128MB的内存到10GB的内存不等。
+
+
+=== 架构图
+
+image::/图片/09图片/架构图.png[架构图]
+
+
+=== 实验步骤
+
+
+==== (1)创建一个 Amazon S3 存储桶
+
+image::/图片/09图片/导航到S3.png[导航到S3]
+
+> - 单击``创建存储桶``
+> - 存储桶名称：输入 ``mysourcebucket12345-aaa``
+> - 注意：每个 S3 存储桶名称在**全局范围内都是唯一的**，因此请使用当前**未使用的名称创建存储桶**。
+> - 区域：选择美国东部（弗吉尼亚北部）
+> - 将其他设置保留为默认值，然后单击**创建存储桶按钮**。
+
+
+==== (2)创建目标存储桶
+
+> - 单击``创建存储桶``
+> - 存储桶名称：输入 ``mydestinationbucket12345-bbb``
+> - 注意：每个 S3 存储桶名称在**全局范围内都是唯一的**，因此请使用当前**未使用的名称创建存储桶**。
+> - 区域：选择美国东部（弗吉尼亚北部）
+> - 将其他设置保留为默认值，然后单击**创建存储桶按钮**。
+
+
+image::/图片/09图片/S3存储桶目录.png[S3存储桶目录]
+
+> - 现在我们有**两个 S3 存储桶（源存储桶和目标存储桶）**。我们将利用 AWS ``Lambda`` 函数**将内容从源存储桶复制到目标存储桶**
+
+==== (3)创建 IAM 策略
+
+> - 作为创建 ``Lambda`` 函数的先决条件，我们需要使用**自定义策略** **创建用户角色**
+> - 导航到``IAM``
+> - 单击``创建策略``
+
+image::/图片/09图片/IAM创建策略.png[IAM创建策略]
+
+
+> - 策略 JSON：
+
+```json
+  { 
+     "Version":"2012-10-17",
+     "Statement":[ 
+        { 
+           "Effect":"Allow",
+           "Action":[ 
+              "s3:GetObject"
+           ],
+           "Resource":[ 
+              "arn:aws:s3:::mysourcebucket12345-aaa/*"
+           ]
+        },
+        { 
+           "Effect":"Allow",
+           "Action":[ 
+              "s3:PutObject"
+           ],
+           "Resource":[ 
+              "arn:aws:s3:::mydestinationbucket12345-bbb/*"
+           ]
+        }
+     ]
+  }
+```
+
+image::/图片/09图片/IAM创建策略2.png[IAM创建策略2]
+
+
+> - 在资源选项中替换存储桶的源和目标 ``存储桶`` 名称。确保在 ``存储桶`` 名称的末尾添加 ``/*``。
+> - 单击"下一步：标签"按钮。将所有内容保留为**默认值**，然后单击``下一步：审核``
+> - 在"创建策略"页上：
+> - 将创建名为 mypolicy 的 **IAM 策略**。
+
+image::/图片/09图片/IAM创建策略3.png[IAM创建策略3]
+
+
+
+==== (4)创建 IAM 角色
+
+
+> - 在左侧菜单中，单击``角色`` 。单击``创建角色``该按钮。
+
+image::/图片/09图片/IAM创建角色.png[IAM创建角色]
+
+> - 从 AWS 服务列表中选择``Lambda``。
+> - 单击下一步
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色2]
+
+
+> - 添加权限：现在，您可以看到策略列表。按名称**搜索您的策略 （mypolicy）**。并添加 **AWSLambdaBasicExecutionRole**。
+
+
+image::/图片/09图片/IAM创建角色3.png[IAM创建角色3]
+
+> - 单击下一步
+> - 角色名称： 角色名称： 输入 **myrole1**
+
+image::/图片/09图片/IAM创建角色4.png[IAM创建角色4]
+
+
+image::/图片/09图片/IAM创建角色5.png[IAM创建角色5]
+
+
+image::/图片/09图片/IAM创建角色成功.png[IAM创建角色成功]
+
+---
+
+=== 创建 Lambda 函数
+
+> - 确保您位于美国东部（弗吉尼亚北部）区域。
+> - 转到菜单，然后单击 **Lambda**。
+
+image::/图片/09图片/导航到Lambda.png[导航到Lambda]
+
+
+> - 单击**创建函数**该按钮。
+> - 选择``从头开始创建``
+> - 函数名称：输入 ``mylambdafunction``
+> - 运行时 ：Node.js 14x
+> - 角色：在权限部分中，单击"更改默认执行角色"，然后单击"使用现有角色"。
+> - 现有角色 ： 选择``myrole1``
+> - 点击**创建函数**该按钮。
+
+image::/图片/09图片/创建Lambda.png[创建Lambda]
+
+
+> - 配置页面：在此页面上，我们需要**配置我们的 lambda 函数**。
+> - 向下滚动，可以看到"代码源"部分。在这里，我们需要编写一个 NodeJs 函数，**该函数从源存储桶复制对象并将其粘贴到目标存储桶中**。
+> - **删除 index.js 中的现有代码**。复制以下代码并将其粘贴到index.js文件中。
+
+```js
+  var AWS = require("aws-sdk");
+  exports.handler = (event, context, callback) => {
+      var s3 = new AWS.S3();
+      var sourceBucket = "mysourcebucket12345";
+      var destinationBucket = "mydestinationbucket12345";
+      var objectKey = event.Records[0].s3.object.key;
+      var copySource = encodeURI(sourceBucket + "/" + objectKey);
+      var copyParams = { Bucket: destinationBucket, CopySource: copySource, Key: objectKey };
+
+      s3.copyObject(copyParams, function(err, data) {
+          if (err) {
+              console.log(err, err.stack);
+          } else {
+              console.log("S3 object copy successful.");
+          }
+      });
+  };
+```
+
+> - 您需要**根据存储桶名称**更改index.js文件中的源存储桶名称和目标存储桶名称。
+> - 通过单击"部署"按钮**保存函数**。
+
+
+image::/图片/09图片/创建Lambda2.png[创建Lambda2]
+
+---
+
+=== 向 Lambda 函数添加触发器
+
+
+> - 向上滚动以转到"函数概述"，然后单击**添加触发器** 。
+
+
+image::/图片/09图片/Lambda触发器.png[Lambda触发器]
+
+
+
+> - 从触发器列表中**选择 S3**。
+> - 存储桶：选择您的**源存储桶** - ``mysourcebucket12345-aaa``。
+> - 事件类型：选择"所有对象创建事件"
+> - 将其他字段**保留为默认值**。
+> - 并**选中此选项** 递归调用 以避免在一次上传多个文件时失败
+
+image::/图片/09图片/Lambda触发器2.png[Lambda触发器2]
+
+image::/图片/09图片/递归调用.png[递归调用]
+
+
+---
+
+=== 测试 Lambda 函数
+
+> - 如果本地计算机上有图像，可以使用本地计算机上的图像**进行测试**
+> - 转到S3存储桶列表，然后单击源存储桶 - ``mysourcebucket12345-aaa``。
+> - 将图像**上传到源 S3 存储桶**。
+> - 点击上传按钮**上传**。
+
+image::/图片/09图片/测试源存储桶.png[测试源存储桶]
+
+> - 单击"添加文件"以**添加文件**。
+> - 选择图像，然后单击上传以上传图像。
+> - 现在返回列表并**打开您的目标存储桶** - ``mydestinationbucket12345-bbb``。
+> - 您可以在目标存储桶中看到**已上传的源存储桶图像的副本**。
+
+image::/图片/09图片/测试目标存储桶.png[测试目标存储桶]
+
+
+---
+

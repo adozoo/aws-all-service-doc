@@ -1,0 +1,48 @@
+Description: EC2 with IAM Role CloudFormation Template
+
+Parameters:
+  Name:
+    Type: String
+    Default: Awslabs
+
+  EC2ImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-04902260ca3d33422
+
+Resources:
+  Ec2SsmIamRole:
+    Type: AWS::IAM::Role
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+  Ec2SsmInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      Path: /
+      Roles: [!Ref Ec2SsmIamRole]
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !Ref EC2ImageId
+      IamInstanceProfile: !Ref Ec2SsmInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${Name}-EC2Instance"
+      UserData:
+        !Base64 | 
+        #!/bin/bash -xe
+        yum update -y
+        sudo yum install -y https://s3.us-east-1.amazonaws.com/amazon-ssm-us-east-1/latest/linux_amd64/amazon-ssm-agent.rpm
+        sudo systemctl enable amazon-ssm-agent
+        sudo systemctl start amazon-ssm-agent

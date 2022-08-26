@@ -1,0 +1,293 @@
+
+## AWS Step Functions创建无服务器工作流
+
+=== 架构图
+
+image::/图片/77图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 创建 DynamoDB 表
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 DynamoDB**,单击**创建表**
+> * 表名称：输入**``mydynamodbtable``**
+> * 分区键：输入**``ID``**并选择**字符串**
+> * 将所有其他设置**保留为默认值**，然后单击**"创建表"**。
+
+image::/图片/77图片/创建表.png[创建表]
+
+> - 您的表将**在 2-3 分钟内创建**。
+
+---
+
+=== 创建 SNS 主题
+
+> - 确保您位于**弗吉尼亚北部**区域。
+> - 通过菜单导航到**"SNS"**。
+> - 单击左侧面板中的**主题**，然后单击**创建主题**。
+> - 在**"详细信息"**下：
+> * 类型：选择**标准**
+> * 名称 ： 输入**``Step_function_SNS``**
+> * 显示名称 ： 输入**``Step_function_SNS``**
+> - 将其他选项**保留为默认值**，然后单击**创建主题**。
+> - 现已**创建一个 SNS 主题**。
+
+image::/图片/77图片/sns主题创建完成.png[sns主题创建完成]
+
+==== 复制 ARN 并将其保存以供日后使用。（将其放置在任何文本编辑器中）
+
+---
+
+=== 订阅 SNS 主题
+
+> - 创建 SNS 主题后，单击 SNS 主题**"Step_function_SNS"**。
+> - 单击**创建订阅**。
+> - 在**"详细信息"**下：
+> * 协议 ：选择**电子邮件**
+> * 终端节点 ：输入**您的电子邮件地址**
+> * 注意： 请确保**提供正确的电子邮件地址**，因为这是将传递您的**通知的地方**。
+> - 您的电子邮件地址将**收到订阅确认**
+
+image::/图片/77图片/sns邮件.png[sns邮件]
+
+> - 单击**"确认订阅"**。
+
+image::/图片/77图片/确认sns.png[确认sns]
+
+> - 您的电子邮件地址现**已订阅 SNS 主题**Step_function_SNS。
+
+---
+
+
+=== 在Step Functions中创建状态机
+
+> - 顶部的菜单**导航到Step Functions**，然后单击左侧菜单**状态机**部分。
+> - 点击**创建状态机**按钮。
+> - 选择创作方法：选择**``用代码编写工作流``**
+> - 类型 ： 选择**``标准``**
+> - 定义：将现有的状态机JSON代码**替换为下面的代码**。
+
+```json
+  {
+    "Comment": "Read or write data from DynamoDB and send Success or Failed message",
+    "StartAt": "TableOperationType",
+    "States": {
+      "TableOperationType": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.TableOperation",
+            "StringEquals": "Read",
+            "Next": "ReadDataFromTable"
+          },
+          {
+            "Variable": "$.TableOperation",
+            "StringEquals": "Write",
+            "Next": "WriteDataToTable"
+          }
+        ],
+        "Default": "NoMatch"
+      },
+      "ReadDataFromTable": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::dynamodb:getItem",
+        "Parameters": {
+          "TableName": "mydynamodbtable",
+          "Key": {
+            "ID": {
+              "S.$": "$.ID"
+            }
+          }
+        },
+        "Catch": [
+          {
+            "ErrorEquals": [
+              "States.TaskFailed"
+            ],
+            "Next": "FailureNotification"
+          }
+        ],
+        "ResultPath": "$.DynamoDB",
+        "Next": "CheckStatus"
+      },
+      "WriteDataToTable": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::dynamodb:putItem",
+        "Parameters": {
+          "TableName": "mydynamodbtable",
+          "Item": {
+            "ID": {
+              "S.$": "$.ID"
+            },
+            "Name": {
+              "S.$": "$.Name"
+            }
+          }
+        },
+        "Catch": [
+          {
+            "ErrorEquals": [
+              "States.TaskFailed"
+            ],
+            "Next": "FailureNotification"
+          }
+        ],
+        "ResultPath": "$.DynamoDB",
+        "Next": "CheckStatus"
+      },
+      "NoMatch": {
+        "Type": "Fail",
+        "Error": "Unknown Table Operation",
+        "Cause": "No Matches!"
+      },
+      "CheckStatus": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.DynamoDB.SdkHttpMetadata.HttpStatusCode",
+            "NumericEquals": 200,
+            "Next": "SuccessNotification"
+          },
+          {
+            "Not": {
+              "Variable": "$.DynamoDB.HttpStatusCode",
+              "NumericEquals": 200
+            },
+            "Next": "FailureNotification"
+          }
+        ]
+      },
+      "SuccessNotification": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::sns:publish",
+        "Parameters": {
+          "Message": "DynamoDB Operation Success !",
+          "TopicArn": "arn:aws:sns:us-east-1:347430552484:Step_function_SNS"
+        },
+        "End": true
+      },
+      "FailureNotification": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::sns:publish",
+        "Parameters": {
+          "Message": "DynamoDB Operation Failed !",
+          "TopicArn": "arn:aws:sns:us-east-1:347430552484:Step_function_SNS"
+        },
+        "End": true
+      }
+    }
+  }
+```
+
+> - 注意：如果您使用**其他名称创建 dynamoDB 表**，请在代码中**更新为正确表名**。
+> - 现在，将**``TopicArn``**的值**替换为您复制并放置在文本编辑中的 SNS 主题 ARN **。
+> - 状态机**定义说明**：
+> * 状态机将数据**写入或读取**到 **dynamoDB 表**。
+> * 根据我们**提供的输入**，它**确定是读取还是写入数据**。
+> * 如果操作成功，您将**收到一条成功消息**，该消息指向您在 **SNS 主题中提供的邮件 ID**。
+> * 如果**操作失败或任何异常或任务操作失败**，您将收到一条**失败消息作为电子邮件通知**。
+
+==== 现在在右侧，**流程图如下**：
+
+image::/图片/77图片/定义.png[定义]
+
+> - 现在点击**下一个**按钮。
+> - 指定**详细信息**：
+> * 名称：输入**``MyStateMachine``**
+> * 权限：
+> ** 执行角色 ：选择**``创建新的角色``**
+> ** AWS 将**自动检测状态机定义中使用的所有服务**，并**创建具有所有必需权限的 IAM 角色**。
+> * 将**其他内容保留为默认值**。
+> - 单击**创建状态机**按钮。
+
+---
+
+=== 测试Step Functions
+
+==== 测试 1：将数据写入 DynamoDB 表
+
+> - 单击**启动执行**按钮。
+> - 新执行：
+> * 名称：输入**``SampleTest1``**
+> * 输入：我们**复制并粘贴以下内容**。
+
+```json
+  {
+    "TableOperation": "Write",
+    "ID" : "12345",
+    "Name" : "Alex"
+  }
+```
+
+> - 单击**启动执行**按钮。
+> - 在图形检查器图中，可以查看**状态机的工作流**。任务的颜色将**变为绿色（成功）**，如下图所示。
+
+image::/图片/77图片/成功1.png[成功1]
+
+> - 现在**导航到您的 DynamoDB 表**，单击表名**``mydynamodbtable``**，然后**查看项目**。
+> - 您将能够**看到已插入到表中的值**。
+
+image::/图片/77图片/检查表.png[检查表]
+
+> - 现在**检查您的邮件**，您将能够**看到成功消息**。
+
+image::/图片/77图片/邮件1.png[邮件1]
+
+==== 测试 2：从 DynamoDB 表中读取数据
+
+> - 现在再次**返回状态机**。
+> - 单击**启动执行**按钮。
+> - 新执行：
+> * 名称：输入**``SampleTest2``**
+> * 输入：我们**复制并粘贴以下内容**。
+
+```json
+  {
+    "TableOperation": "Read",
+    "ID" : "12345"
+  }
+```
+
+> - 单击**启动执行**按钮。
+> - 在图形检查器图中，可以查看**状态机的工作流**。任务的颜色将**变为绿色（成功）**，如下图所示。
+
+image::/图片/77图片/成功2.png[成功2]
+
+> - 现在**检查您的邮件**，您将能够**看到成功消息**。
+
+image::/图片/77图片/邮件2.png[邮件2]
+
+==== 测试 3：未通过条件
+
+> - 现在再次**返回状态机**。
+> - 单击**启动执行**按钮。
+> - 新执行：
+> * 名称：输入**``SampleTest3``**
+> * 输入：我们**复制并粘贴以下内容**。
+
+```json
+  {
+    "TableOperation": "Update",
+    "ID" : "123454",
+    "Name" : "John"
+  }
+```
+
+> - 单击**启动执行**按钮。
+> - 在图形检查器图中，可以查看**状态机的工作流**。
+
+image::/图片/77图片/失败.png[失败]
+
+
+> - 请注意，**仅**当**对 DynamoDB 的 API 调用失败**或**定义中的表名错误**时，您**才会收到失败的 SNS 通知**。
+
+
+---
+
+
+
+
+
+
+

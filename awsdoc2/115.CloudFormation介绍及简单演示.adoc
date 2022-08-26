@@ -1,0 +1,380 @@
+
+## CloudFormation介绍及简单演示
+
+=== AWS CloudFormation
+
+> - CloudFormation 是 **AWS 提供的一项服务**，用于**使用代码（即基础设施即代码）设计我们自己的基础设施**。
+> - 目前，**CloudFormation 支持两种语言 JSON 和 YAML**。 您可以使用**其中一种语言编写代码**。
+> - CloudFormation具有**强大的功能**，可以**随时更新您的基础架构**，并且还能够在您**不需要的情况下删除堆栈**。
+> - CloudFormation的一个**迷人功能**是，它**节省了更多构建基础架构的时间**，并有助于**专注于开发**。
+> - 也可以在**短时间内复制我们的基础架构**。
+> - 它**消除了人为错误**，并根据您**编写的代码工作**。它由两个主要组件组成，**堆栈和模板**。
+
+=== CloudFormation 模板
+
+> - 它由各个部分组成，例如
+> * **AWS 模板格式版本**
+> * **描述**
+> * **元数据**
+> * **参数**
+> * **映射**
+> * **条件**
+> * **资源（必填字段）**
+> * **输出**
+> - 模板不需要上述所有部分。通过**仅使用“资源”部分**，我们将能够**创建一个模板**。
+> - **资源**部分在**模板创建中起着重要作用**。
+> - 例如，要**创建 EC2 实例**，模板应包含**各种参数，例如密钥对、镜像 ID、实例类型**。
+> - 也可以在**同一模板中创建两个资源**，并从**另一个模板引用一个资源**，即**使用 EC2 实例附加弹性 IP**。
+
+=== CloudFormation 堆栈
+
+> - **堆栈由资源集合组成**。
+> - 换句话说，**堆栈由一个或多个模板组成**。
+> - **堆栈的优点是可以轻松创建**，**删除或更新资源集合**。
+> - **高级堆栈具有一个嵌套堆栈**，其中**包含堆栈集合**。
+
+=== 架构图
+
+image::/图片2/115图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 复制模板创建JSON文件
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``LAMP_template.json``**
+
+```json
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "AWS CloudFormation Sample Template LAMP_Single_Instance: Create a LAMP stack using a single EC2 instance and a local MySQL database for storage. This template demonstrates using the AWS CloudFormation bootstrap scripts to install the packages and files necessary to deploy the Apache web server, PHP and MySQL at instance launch time. **WARNING** This template creates an Amazon EC2 instance. You will be billed for the AWS resources used if you create a stack from this template.",
+
+  "Parameters" : {
+
+    "KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Default": "awslabs-key",
+      "ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+    },
+
+    "DBName": {
+      "Default": "MyDatabase",
+      "Description" : "MySQL database name",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
+    },
+
+    "DBUser": {
+      "NoEcho": "true",
+      "Description" : "Username for MySQL database access",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "16",
+      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription" : "must begin with a letter and contain only alphanumeric characters."
+    },
+
+    "DBPassword": {
+      "NoEcho": "true",
+      "Description" : "Password for MySQL database access",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "41",
+      "AllowedPattern" : "[a-zA-Z0-9]*",
+      "ConstraintDescription" : "must contain only alphanumeric characters."
+    },
+
+    "DBRootPassword": {
+      "NoEcho": "true",
+      "Description" : "Root password for MySQL",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "41",
+      "AllowedPattern" : "[a-zA-Z0-9]*",
+      "ConstraintDescription" : "must contain only alphanumeric characters."
+    },
+
+    "InstanceType" : {
+      "Description" : "WebServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : ["t2.micro"]
+,
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "SSHLocation" : {
+      "Description" : " The IP address range that can be used to SSH to the EC2 instances",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "0.0.0.0/0",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    }
+  },
+
+  "Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t2.micro"    : { "Arch" : "HVM64"  }
+    },
+
+    "AWSInstanceType2NATArch" : {
+      "t2.micro"    : { "Arch" : "NATHVM64"  }
+    }
+,
+     "AWSRegionArch2AMI" : {
+      "us-east-1"      : { "HVM64" : "ami-0080e4c5bc078760e" }
+    }
+
+  },
+
+  "Resources" : {
+
+    "WebServerInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "configSets" : {
+            "InstallAndRun" : [ "Install", "Configure" ]
+          },
+
+          "Install" : {
+            "packages" : {
+              "yum" : {
+                "mysql"        : [],
+                "mysql-server" : [],
+                "mysql-libs"   : [],
+                "httpd"        : [],
+                "php"          : [],
+                "php-mysql"    : []
+              }
+            },
+
+            "files" : {
+              "/var/www/html/index.php" : {
+                "content" : { "Fn::Join" : [ "", [
+                  "<html>\n",
+                  "  <head>\n",
+                  "    <title>AWS CloudFormation PHP Sample</title>\n",
+                  "    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=ISO-8859-1\">\n",
+                  "  </head>\n",
+                  "  <body>\n",
+                  "    <h1>Welcome to the AWS CloudFormation PHP Sample</h1>\n",
+                  "    <p/>\n",
+                  "    <?php\n",
+                  "      // Print out the current data and time\n",
+                  "      print \"The Current Date and Time is: <br/>\";\n",
+                  "      print date(\"g:i A l, F j Y.\");\n",
+                  "    ?>\n",
+                  "    <p/>\n",
+                  "    <?php\n",
+                  "      // Setup a handle for CURL\n",
+                  "      $curl_handle=curl_init();\n",
+                  "      curl_setopt($curl_handle,CURLOPT_CONNECTTIMEOUT,2);\n",
+                  "      curl_setopt($curl_handle,CURLOPT_RETURNTRANSFER,1);\n",
+                  "      // Get the hostname of the intance from the instance metadata\n",
+                  "      curl_setopt($curl_handle,CURLOPT_URL,'http://169.254.169.254/latest/meta-data/public-hostname');\n",
+                  "      $hostname = curl_exec($curl_handle);\n",
+                  "      if (empty($hostname))\n",
+                  "      {\n",
+                  "        print \"Sorry, for some reason, we got no hostname back <br />\";\n",
+                  "      }\n",
+                  "      else\n",
+                  "      {\n",
+                  "        print \"Server = \" . $hostname . \"<br />\";\n",
+                  "      }\n",
+                  "      // Get the instance-id of the intance from the instance metadata\n",
+                  "      curl_setopt($curl_handle,CURLOPT_URL,'http://169.254.169.254/latest/meta-data/instance-id');\n",
+                  "      $instanceid = curl_exec($curl_handle);\n",
+                  "      if (empty($instanceid))\n",
+                  "      {\n",
+                  "        print \"Sorry, for some reason, we got no instance id back <br />\";\n",
+                  "      }\n",
+                  "      else\n",
+                  "      {\n",
+                  "        print \"EC2 instance-id = \" . $instanceid . \"<br />\";\n",
+                  "      }\n",
+                  "      $Database   = \"localhost\";\n",
+                  "      $DBUser     = \"", {"Ref" : "DBUser"}, "\";\n",
+                  "      $DBPassword = \"", {"Ref" : "DBPassword"}, "\";\n",
+                  "      print \"Database = \" . $Database . \"<br />\";\n",
+                  "      $dbconnection = mysql_connect($Database, $DBUser, $DBPassword)\n",
+                  "                      or die(\"Could not connect: \" . mysql_error());\n",
+                  "      print (\"Connected to $Database successfully\");\n",
+                  "      mysql_close($dbconnection);\n",
+                  "    ?>\n",
+                  "    <h2>PHP Information</h2>\n",
+                  "    <p/>\n",
+                  "    <?php\n",
+                  "      phpinfo();\n",
+                  "    ?>\n",
+                  "  </body>\n",
+                  "</html>\n"
+                ]]},
+                "mode"  : "000600",
+                "owner" : "apache",
+                "group" : "apache"
+              },
+
+              "/tmp/setup.mysql" : {
+                "content" : { "Fn::Join" : ["", [
+                  "CREATE DATABASE ", { "Ref" : "DBName" }, ";\n",
+                  "GRANT ALL ON ", { "Ref" : "DBName" }, ".* TO '", { "Ref" : "DBUser" }, "'@localhost IDENTIFIED BY '", { "Ref" : "DBPassword" }, "';\n"
+                  ]]},
+                "mode"  : "000400",
+                "owner" : "root",
+                "group" : "root"
+              },
+              "/etc/cfn/cfn-hup.conf" : {
+                "content" : { "Fn::Join" : ["", [
+                  "[main]\n",
+                  "stack=", { "Ref" : "AWS::StackId" }, "\n",
+                  "region=", { "Ref" : "AWS::Region" }, "\n"
+                ]]},
+                "mode"    : "000400",
+                "owner"   : "root",
+                "group"   : "root"
+              },
+
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf" : {
+                "content": { "Fn::Join" : ["", [
+                  "[cfn-auto-reloader-hook]\n",
+                  "triggers=post.update\n",
+                  "path=Resources.WebServerInstance.Metadata.AWS::CloudFormation::Init\n",
+                  "action=/opt/aws/bin/cfn-init -v ",
+                  "         --stack ", { "Ref" : "AWS::StackName" },
+                  "         --resource WebServerInstance ",
+                  "         --configsets InstallAndRun ",
+                  "         --region ", { "Ref" : "AWS::Region" }, "\n",
+                  "runas=root\n"
+                ]]},
+                "mode"    : "000400",
+                "owner"   : "root",
+                "group"   : "root"
+              }
+            },
+
+            "services" : {
+              "sysvinit" : {
+                "mysqld"  : { "enabled" : "true", "ensureRunning" : "true" },
+                "httpd"   : { "enabled" : "true", "ensureRunning" : "true" },
+                "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+                              "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"]}
+              }
+            }
+          },
+
+          "Configure" : {
+            "commands" : {
+              "01_set_mysql_root_password" : {
+                "command" : { "Fn::Join" : ["", ["mysqladmin -u root password '", { "Ref" : "DBRootPassword" }, "'"]]},
+                "test" : { "Fn::Join" : ["", ["$(mysql ", { "Ref" : "DBName" }, " -u root --password='", { "Ref" : "DBRootPassword" }, "' >/dev/null 2>&1 </dev/null); (( $? != 0 ))"]]}
+              },
+              "02_create_database" : {
+                "command" : { "Fn::Join" : ["", ["mysql -u root --password='", { "Ref" : "DBRootPassword" }, "' < /tmp/setup.mysql"]]},
+                "test" : { "Fn::Join" : ["", ["$(mysql ", { "Ref" : "DBName" }, " -u root --password='", { "Ref" : "DBRootPassword" }, "' >/dev/null 2>&1 </dev/null); (( $? != 0 ))"]]}
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
+        "InstanceType"   : { "Ref" : "InstanceType" },
+        "SecurityGroups" : [ {"Ref" : "WebServerSecurityGroup"} ],
+        "KeyName"        : { "Ref" : "KeyName" },
+        "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+             "#!/bin/bash -xe\n",
+             "yum update -y aws-cfn-bootstrap\n",
+
+             "# Install the files and packages from the metadata\n",
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource WebServerInstance ",
+             "         --configsets InstallAndRun ",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n",
+
+             "# Signal the status from cfn-init\n",
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource WebServerInstance ",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n"
+        ]]}}
+      },
+      "CreationPolicy" : {
+        "ResourceSignal" : {
+          "Timeout" : "PT10M"
+        }
+      }
+    },
+
+    "WebServerSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable HTTP access via port 80",
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : { "Ref" : "SSHLocation"}}
+        ]
+      }
+    }
+  },
+
+  "Outputs" : {
+    "WebsiteURL" : {
+      "Description" : "URL for newly created LAMP stack",
+      "Value" : { "Fn::Join" : ["", ["http://", { "Fn::GetAtt" : [ "WebServerInstance", "PublicDnsName" ]}]] }
+    }
+  }
+}
+```
+
+---
+
+=== 创建 CloudFormation 堆栈
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``上传模板文件``**
+> ** 点击**选择文件**按钮，在本地计算机中**选择本实验对应的 ``LAMP_template.json``进行上传**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``MyFirstCFStack``**
+> * 参数：
+> ** DBName ：输入数据库名称 - **``MyDatabase``**
+> ** DBPassword ： 输入数据库密码 - **``awslabsdb123``**
+> ** DBRootPassword ： 输入数据库根密码 - **``awslabsdbroot123``**
+> ** DBUser ：输入数据库用户名 - **``awslabsDBUser``**
+> ** 实例类型 ： 选择 **``t2.micro``**
+> ** KeyName：从列表中选择 **``awslabs-key``**
+> *** **没有名称为 awslabs-key 的密钥对**的话请导航到EC2**创建一个**
+> ** SSH 位置：输入 **``0.0.0.0/0``**
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，并点击**创建堆栈**按钮
+> * 注意：请**等待 CloudFormation 创建资源完成**
+
+image::/图片2/115图片/CloudFormation.png[CloudFormation]
+
+---
+
+=== 测试
+
+> - 现在**导航到输出选项卡**，您将能够看到**类似于下面的URL**。**单击该网址**。这将带您**进入 LAMP 服务器的主页**。
+> * **``http://ec2-52-91-193-201.compute-1.amazonaws.com``**
+> - 如果您**看到 PHP 信息和数据库连接**，则表示您**已完成使用 AWS CloudFormation 设置 LAMP 服务器**。示例**屏幕截图**：
+
+image::/图片2/115图片/LAMP.png[LAMP]
+
+---

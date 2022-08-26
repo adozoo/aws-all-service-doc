@@ -1,0 +1,130 @@
+
+## 创建 AWS VPC 流日志
+
+=== 什么是VPC 流日志？
+
+> - 利用 VPC 流日志这项功能，您可以**捕获**有关**传入和传出您的 VPC 中网络接口的 IP 流量的信息**。帮助您**检查访问控制规则**、**监控网络流量**、**进行网络故障排查**。
+> - 流日志数据**可以发布到** **Amazon CloudWatch Logs** 和 **Amazon S3**。
+> - 创建流日志后，您可以在选定目标中**检索和查看其数据**。
+
+=== 架构图
+
+image::/图片/35图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 创建CloudWatch Logs
+
+> - 顶部菜单**导航到 CloudWatch**。
+> - 单击左侧面板中的**日志组**，单击**创建日志组**。
+> - 输入日志组**名称：awsvpclogs**，然后**单击创建**
+
+image::/图片/35图片/创建logs.png[创建logs]
+
+image::/图片/35图片/logs成功.png[logs成功]
+
+=== 创建 IAM 角色
+
+> - 导航到``IAM``
+> - 在**左侧菜单**中，单击``角色`` 。单击``创建角色``该按钮以**创建新的 IAM 角色**。
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:EC2**
+> - 注意：通过选择 EC2 **作为使用案例**，您也可以将此角色**用于 VPC 流日志**。
+
+image::/图片/25图片/创建IAM.png[创建IAM]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。
+> - 选择**"创建策略"**，将**打开一个新选项卡**，然后将**代码复制并粘贴到 JSON 下**。
+
+```json
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Effect": "Allow",
+              "Action": [
+                  "ec2:AssociateVpcCidrBlock",
+                  "ec2:AuthorizeSecurityGroupEgress",
+                  "ec2:AuthorizeSecurityGroupIngress",
+                  "ec2:CreateEgressOnlyInternetGateway",
+                  "ec2:CreateFlowLogs",
+                  "ec2:CreateRoute",
+                  "ec2:CreateRouteTable",
+                  "ec2:CreateSecurityGroup",
+                  "ec2:CreateSubnet",
+                  "ec2:CreateTags",
+                  "ec2:CreateVpc",
+                  "ec2:Describe*",
+                  "ec2:EnableVgwRoutePropagation",
+                  "ec2:EnableVpcClassicLink",
+                  "ec2:EnableVpcClassicLinkDnsSupport",
+                  "ec2:MoveAddressToVpc",
+                  "ec2:RestoreAddressToClassic",
+                  "ec2:RevokeSecurityGroupEgress",
+                  "ec2:RevokeSecurityGroupIngress",
+                  "ec2:UnassignPrivateIpAddresses",
+                  "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+                  "ec2:UpdateSecurityGroupRuleDescriptionsIngress"
+              ],
+              "Resource": "*",
+              "Condition": {
+                  "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                  }
+              }
+          }
+      ]
+  }
+```
+
+> - 现在点击 **下一页：标签** 按钮。**无需更改**
+> - 单击**"下一步：查看"**按钮。
+> - 输入策略名称：**awspolicy**，然后单击**"创建策略"**。
+> - 创建策略后，返回**"创建角色"**选项卡，然后单击右上角的**"刷新"**按钮。
+> - 在"筛选策略"部分中**搜索"awspolicy"**并将其**选中**。
+> - 单击**下一步**
+> - 角色名称：输入 **awsrole**
+> - 您**已成功**按名称 awsrole 创建了一个 IAM 角色。
+
+---
+
+=== 创建VPC
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 VPC**
+> - 单击左侧菜单中的**您的 VPC**
+> - 在这里，您可以**看到所有 VPC 的列表**，无需对现有和默认 VPC **执行任何操作**，我们将**创建一个新的 VPC**。
+> - 单击**``创建 VPC``**按钮。
+> * 名称标签： **输入用于向您的 VPC 标识的 VPC 名称**。例如：MyVPC
+> * IPv4 CIDR 块： 输入 **10.0.0.0/16**
+> * IPv6 CIDR 块： 无需更改此设置，请确保选中**"无 IPv6 CIDR 块"**
+> * 租期： 无需更改此设置，请确保**选中"默认"**。
+> - 现在单击**``创建 VPC``**按钮
+
+image::/图片/30图片/vpc.png[vpc]
+
+> - 创建VPC后，它将显示**详细信息**，**如下所示**：
+
+image::/图片/30图片/vpcok.png[vpcok]
+
+---
+
+=== 创建 VPC 流日志
+
+> - 单击进入 MyVPC 内部，**向下滚动**并单击**"流日志"选项卡**，然后单击**"创建流日志"**按钮。
+> - **MyVPC流日志设置：**
+> * 名称：**awsflow**
+> * 选择**"筛选条件"**为**接受**，选择**"目标"**为发送到 **CloudWatch Logs**
+> * 选择上面的**创建CloudWatch Logs"awsvpclogs"**
+> * 选择 IAM 角色**"awsrole"**
+> * 并将其他设置**保留为默认值**。单击**"创建流日志"**。
+> - 创建流日志后，向下滚动可以**查看到创建的"流日志"**。
+
+image::/图片/35图片/流日志.png[流日志]
+
+
+> - 现在，您已经**成功学习了如何创建 VPC 流日志**。
+
+---

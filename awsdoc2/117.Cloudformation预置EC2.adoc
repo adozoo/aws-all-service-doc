@@ -1,0 +1,194 @@
+
+## Cloudformation预置EC2
+
+=== 架构图
+
+image::/图片2/117图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 复制模板创建JSON文件
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``Lab_AWS_EC2_Provisioning_Using_CF.json``**
+
+```json
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "AWS CloudFormation Sample Template EC2InstanceWithSecurityGroupSample: Create an Amazon EC2 instance running the Amazon Linux AMI. The AMI is chosen based on the region in which the stack is run. This example creates an EC2 security group for the instance to give you SSH access. **WARNING** This template creates an Amazon EC2 instance. You will be billed for the AWS resources used if you create a stack from this template.",
+
+  "Parameters" : {
+    "KeyName": {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Default": "awslabs-key",
+      "ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+    },
+
+    "InstanceType" : {
+      "Description" : "WebServer EC2 instance type",
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : [ "t2.micro"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+
+    "SSHLocation" : {
+      "Description" : "The IP address range that can be used to SSH to the EC2 instances",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "0.0.0.0/0",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+   },
+     "HTTPLocation" : {
+       "Description" : "The IP address range that can be used for HTTP Trasffic to the EC2 instances",
+       "Type": "String",
+       "MinLength": "9",
+       "MaxLength": "18",
+       "Default": "0.0.0.0/0",
+       "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+       "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+    },
+    "ICMPLocation" : {
+      "Description" : "The IP address range that can be used for ICMP Traffic to the EC2 instances",
+      "Type": "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default": "0.0.0.0/0",
+      "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+   }
+  },
+
+  "Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t2.micro"    : { "Arch" : "HVM64"  }
+    },
+
+    "AWSInstanceType2NATArch" : {
+      "t2.micro"    : { "Arch" : "NATHVM64"  }
+    },
+    "AWSRegionArch2AMI" : {
+      "us-east-1"        : {"HVM64" : "ami-0b69ea66ff7391e80", "HVMG2" : "ami-0aeb704d503081ea6"}
+    }
+  },
+
+  "Resources" : {
+    "EC2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : { "Ref" : "InstanceType" },
+        "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+        "KeyName" : { "Ref" : "KeyName" },
+        "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
+                          { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] }
+      }
+    },
+
+    "InstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable SSH access via port 22, HTTP access via port 80 & ICMP access via ay port",
+        "SecurityGroupIngress" : [ {
+          "IpProtocol" : "tcp",
+          "FromPort" : "22",
+          "ToPort" : "22",
+          "CidrIp" : { "Ref" : "SSHLocation"}
+        },
+        {
+          "IpProtocol" : "tcp",
+          "FromPort" : "80",
+          "ToPort" : "80",
+          "CidrIp" : { "Ref" : "HTTPLocation"}
+        },
+        {
+          "IpProtocol" : "icmp",
+          "FromPort" : "8",
+          "ToPort" : "0",
+          "CidrIp" : { "Ref" : "ICMPLocation"}
+        }]
+      }
+    }
+  },
+
+  "Outputs" : {
+    "InstanceId" : {
+      "Description" : "InstanceId of the newly created EC2 instance",
+      "Value" : { "Ref" : "EC2Instance" }
+    },
+    "AZ" : {
+      "Description" : "Availability Zone of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "EC2Instance", "AvailabilityZone" ] }
+    },
+    "PublicDNS" : {
+      "Description" : "Public DNSName of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "EC2Instance", "PublicDnsName" ] }
+    },
+    "PublicIP" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "EC2Instance", "PublicIp" ] }
+    }
+  }
+}
+```
+
+> - Cloudformation 模板中提供的**一些重要信息**
+> * KeyName ： 用于对实例进行** SSH 连接**的**现有 EC2 密钥对的名称**。它必须是**现有 EC2 密钥对的名称**。
+> * 实例类型 ： 它是一个 WebServer EC2 实例类型。它必须是**有效的 EC2 实例类型**。
+> * SSH地址 ： 可用于 SSH **连接到 EC2 实例的 IP 地址范围**。它必须是 x.x.x.x/x 格式的有效 IP CIDR 范围。
+> * HTTP地址 ：可用于 HTTP **访问到 EC2 实例的 IP 地址范围**。它必须是 x.x.x.x/x 格式的有效 IP CIDR 范围。
+> * ICMP地址 ：可用于**到 EC2 实例的 ICMP 流量的 IP 地址范围**。它必须是 x.x.x.x/x 格式的有效 IP CIDR 范围。
+> * AWSInstanceType2Arch ： 提供 **EC2 实例的架构类型**。
+> * AWSRegionArch2AMI ：提供 **EC2 实例的区域**和 **AMI 详细信息**。
+> * EC2实例 ：要预置的 **EC2 实例的详细信息**。它包含**实例类型，安全组，密钥名称，镜像ID等**。
+> * 实例安全组 ：提供将**附加到 EC2 实例的安全组详细信息**。
+> * 输出： 使用此 Cloudformation 模板**预置 EC2 后**，将向用户**显示参数以供进一步使用**。它**包括 InstanceId、AZ、PublicDNS 和 PublicIP**。
+
+---
+
+=== 创建 CloudFormation 堆栈
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``上传模板文件``**
+> ** 点击**选择文件**按钮，在本地计算机中**选择本实验对应的 ``Lab_AWS_EC2_Provisioning_Using_CF.json``进行上传**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``MyEC2CFStack``**
+> * 参数：
+> ** HTTP地址 ： **``0.0.0.0/0``**
+> ** ICMP地址 ： **``0.0.0.0/0``**
+> ** 实例类型 ： **``t2.micro``**
+> ** KeyName ： **``awslabs-key``**
+> *** **没有名称为 awslabs-key 的密钥对**的话请导航到EC2**创建一个**
+> ** SSH 地址：输入 **``0.0.0.0/0``**
+> ** 如果需要，您可以**更新参数信息**，也**可以将其保留原样**。
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，并点击**创建堆栈**按钮
+> * 注意：请**等待 CloudFormation 创建资源完成**
+
+image::/图片2/117图片/CloudFormation.png[CloudFormation]
+
+---
+
+=== 检查新预置的 EC2 实例
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 EC2**
+> - 单击**左侧面板**中的**实例**
+
+image::/图片2/117图片/EC2.png[EC2]
+
+> - EC2 实例应**已使用以下值进行预置**：
+> * 实例 ID ： **``i-00fea053eb6491d61``**（根据 EC2 屏幕截图）
+> * 实例类型 ： **``t2.micro``**
+
+---

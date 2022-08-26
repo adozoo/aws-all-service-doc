@@ -1,0 +1,46 @@
+Expense_Type,Expense_Category
+Air Direct Billed,Transportation
+Air-Rail Transportation,Transportation
+Air Express Shipping,Shipping
+Bonus (Non-Cash Awards),Compensation
+Books-Subscriptions,Office
+Breakfast,Food
+Car Rental,Transportation
+Computer Supplies,Office
+Courier-Ground Freight,Shipping
+Dinner,Food
+Entertainment,Food
+Expats - Air-Rail,Transportation
+Expats - Car Rental,Transportation
+Expats - Education,Education
+Expats - Hotel-Lodging,Lodging
+Expats - Meals,Food
+Expats - Misc,Misc
+Gas,Transportation
+General Office Supplies,Office
+Government-Bonus (Non-Cash),Compensation
+Government-Breakfast,Food
+Government-Dinner,Food
+Government-Entertainment,Food
+Government-Lunch,Food
+Government-Misc. Emp Exp,Misc
+Hotel-Lodging,Lodging
+Lunch,Food
+Marketing Costs,Marketing
+Mileage,Transportation
+Misc. Employee Expenses,Misc
+Other Transportation,Transportation
+Outside Vendor Training,Education
+Pagers,Office
+Parking,Transportation
+Per Diem <$100 per day,Food
+Phone - Calling Card,Office
+Phone - Cellular,Office
+Phone - Home-Other,Office
+Postage,Office
+Printing,Office
+Small Computer Equipment,Office
+Software,Office
+Taxi,Transportation
+Telecommuting Expenses,Office
+Tolls,Transportation

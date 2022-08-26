@@ -1,0 +1,202 @@
+
+
+
+## 关闭和终止 EC2 实例的 Lambda 函数
+
+=== Lambda
+
+> - AWS Lambda 是一项**无服务器计算服务**。
+> - 它**无需任何服务器**即可工作，并**允许**我们为任何类型的应用程序执行代码。
+> - 开发人员不必担心要启动的 AWS 资源或管理资源所需的步骤。
+> - 任务的配置**以代码的形式完成**。它们在 Lambda 中实现并在执行时执行。
+> - 预置和管理都由 Lambda 函数负责。
+> - AWS Lambda 支持的语言包括 Node.js、Python、C#、Java 和 Go。
+> - 它允许我们运行代码以响应来自其他 AWS 服务的事件。
+> - 自动缩放是根据**工作负载**的大小完成的。
+> - AWS Lambda 的成本非常低，并且取决于多种因素。它将为每 100 毫秒的运行时收费，也会对代码的执行次数收费。
+> - Lambda 函数执行的允许运行时介于 100 毫秒到 15 分钟之间。
+> - 它提供的资源从128MB的内存到10GB的内存不等。
+
+
+=== 架构图
+
+image::/图片/11图片/架构图.png[架构图]
+
+
+=== 实验步骤
+
+==== (1)控制台启动实例
+
+image::/图片/07图片/控制台2.png[控制台启动实例]
+
+==== (2)选择系统镜像
+
+image::/图片/07图片/控制台3.png[选择系统镜像]
+
+==== (3)选择实例类型
+
+image::/图片/07图片/配置1.png[选择实例类型]
+
+==== (4)配置实例
+
+> - 实例数：**输入 2**
+> - 其他保持**默认**
+
+image::/图片/11图片/配置实例.png[配置实例]
+
+
+==== (5)添加存储
+
+image::/图片/07图片/配置2.png[添加存储]
+
+==== (6)添加标签
+
+image::/图片/07图片/配置3.png[添加标签]
+
+==== (7)配置安全组
+
+image::/图片/01图片/配置安全组.png[配置安全组]
+
+
+==== (8) 审核启动
+
+> - 密钥对：选择"在没有密钥对的情况下继续"，然后选中复选框进行**确认**
+
+image::https://github.com/warrenlucky/AWS-fullstack-tech/blob/main/%E5%9B%BE%E7%89%87/04%E5%9B%BE%E7%89%87/%E6%97%A0%E5%AF%86%E9%92%A5%E5%90%AF%E5%8A%A8.png[密钥对2]
+
+
+==== (9) 检查
+
+> - 导航回实例页面，您将能够看到两个 EC2 实例**已启动**
+
+image::/图片/11图片/2个Ec2.png[2个Ec2]
+
+> - **选择任意一个** EC2 实例，然后单击**实例状态**。
+> - 单击"停止实例"
+
+image::/图片/11图片/停止一个ec2.png[停止一个ec2]
+
+---
+
+
+=== 创建 IAM 角色
+
+> - **导航到IAM**
+> - 在左侧菜单中，单击``角色`` 。单击``创建角色``该按钮。
+
+image::/图片/09图片/IAM创建角色.png[IAM创建角色]
+
+> - 从 AWS 服务列表中选择``Lambda``。
+> - 单击**下一步**
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色1]
+
+> - 添加权限：现在，您可以看到策略列表。在搜索栏中**键入 EC2fullaccess 搜索**，然后**选中**
+
+image::/图片/11图片/IAM创建角色2.png[IAM创建角色2]
+
+> - 单击**下一步**
+> - 角色名称： 角色名称： 输入 **Lambda_ec2_status**
+> - 您**已成功**按名称 Lambda_ec2_status 创建了一个 **IAM 角色**。
+
+
+=== 创建 Lambda 函数
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 转到菜单，然后单击 **Lambda**。
+
+
+image::/图片/09图片/导航到Lambda.png[导航到Lambda]
+
+
+> - 单击**创建函数**该按钮。
+> - 选择``从头开始创建``
+> - 函数名称：输入 ``myEC2Lambda``
+> - 运行时 ：Python 3.9
+> - 角色：在权限部分中，单击"更改默认执行角色"，然后单击"使用现有角色"。
+> - 现有角色 ： 选择``Lambda_ec2_status``
+> - 点击**创建函数**该按钮。
+
+
+image::/图片/11图片/创建lambda.png[创建lambda]
+
+
+> - 配置页面：在此页面上，我们需要**配置我们的 lambda 函数**。
+> - 向下滚动，可以看到"代码源"部分。在这里，我们需要编写一些 Python 代码来**关闭和终止 EC2 实例**。
+> - **删除lambda_function.py文件中的现有代码**。复制以下代码并将其**粘贴**到lambda_function.py文件中。
+
+
+```py
+  import json
+  import boto3
+  def lambda_handler(event, context):
+      region = 'us-east-1'
+      client = boto3.client("ec2", region_name=region)
+      status = client.describe_instance_status(IncludeAllInstances = True)
+
+      for i in status["InstanceStatuses"]:
+          instaId = list(i["InstanceId"].split(" "))
+
+          if i["InstanceState"]["Name"] == "running":
+              print("Instances status : ", i["InstanceState"]["Name"])
+              client.stop_instances(InstanceIds=instaId)
+              print("Stopping the instance",i["InstanceId"])
+
+          elif i["InstanceState"]["Name"] == "stopped":
+              print("Instances status : ", i["InstanceState"]["Name"])
+              client.terminate_instances(InstanceIds=instaId)
+              print("Terminating the instance",i["InstanceId"])
+
+          elif i["InstanceState"]["Name"] == "terminated":
+              print("Terminated the instance",i["InstanceId"])
+
+          else:
+              print("Please wait for the instance to be stopped or running state")
+          print("\n")
+
+      return {
+          'statusCode': 200,
+      }
+```
+
+> - 通过单击"部署"按钮**保存函数**。
+
+
+=== 配置测试事件
+
+> - 单击"测试"按钮。
+
+image::/图片/11图片/测试1.png[测试1]
+
+> - 在"配置测试事件"页中，
+> * 事件名称：**输入 myEC2Test**
+> * 将其他字段保留为**默认值**。
+> * 单击**创建**
+
+
+=== 使用 Lambda 函数执行停止和终止EC2实例的操作
+
+> - 配置 myEC2Test 后，我们可以**手动触发**来**测试 lambda**。
+> - 单击"测试"按钮。
+
+image::/图片/11图片/测试1.png[测试1]
+
+
+> - 现在 lambda 函数将执行，**停止正在运行的 EC2 实例，并终止已停止的 EC2 实例**。
+> - 完成后，您将看到一条**成功消息**（如下所示）。
+
+image::/图片/11图片/测试成功.png[测试成功]
+
+---
+
+
+=== 检查 EC2 实例
+
+> - 从服务菜单**导航到 EC2 页面**。
+> - 左侧菜单转到**实例**。
+> - 您可以看到**正在运行的实例已停止**，**已停止的实例已终止**
+
+image::/图片/11图片/ec2验证.png[ec2验证]
+
+
+---

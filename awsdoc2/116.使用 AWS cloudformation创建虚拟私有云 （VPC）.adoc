@@ -1,0 +1,216 @@
+
+## 使用 AWS cloudformation创建虚拟私有云 （VPC）
+
+=== 架构图
+
+image::/图片2/116图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 复制模板创建JSON文件
+
+> - **复制下方CloudFormation 模板代码**
+> - 在本地计算机中另存为**``VPC_template.json``**
+
+```json
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Deploy a VPC",
+    "Resources": {
+        "VPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/16",
+                "EnableDnsHostnames": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Lab VPC"
+                    }
+                ]
+            }
+        },
+        "InternetGateway": {
+            "Type": "AWS::EC2::InternetGateway",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Lab Internet Gateway"
+                    }
+                ]
+            }
+        },
+        "AttachGateway": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            }
+        },
+        "PublicSubnet1": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": "10.0.0.0/24",
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        "0",
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Public Subnet 1"
+                    }
+                ]
+            }
+        },
+        "PrivateSubnet1": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": "10.0.1.0/24",
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        "0",
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Private Subnet 1"
+                    }
+                ]
+            }
+        },
+        "PublicRouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Public Route Table"
+                    }
+                ]
+            }
+        },
+        "PublicRoute": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            }
+        },
+        "PublicSubnetRouteTableAssociation1": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "PublicSubnet1"
+                },
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }
+        },
+        "PrivateRouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Private Route Table"
+                    }
+                ]
+            }
+        },
+        "PrivateSubnetRouteTableAssociation1": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "PrivateSubnet1"
+                },
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "VPC": {
+            "Description": "VPC",
+            "Value": {
+                "Ref": "VPC"
+            }
+        },
+        "AZ1": {
+            "Description": "Availability Zone 1",
+            "Value": {
+                "Fn::GetAtt": [
+                    "PublicSubnet1",
+                    "AvailabilityZone"
+                ]
+            }
+        }
+    }
+}
+```
+
+---
+
+=== 创建 CloudFormation 堆栈
+
+> - 请确保您位于**美国东部（弗吉尼亚北部）**us-east-1 区域
+> - 顶部菜单**导航到 CloudFormation**
+> - 点击**创建堆栈**
+> - **创建堆栈**：
+> * 先决条件 - 准备模板：选择**``模板已就绪``**
+> * 指定模板：**``上传模板文件``**
+> ** 点击**选择文件**按钮，在本地计算机中**选择本实验对应的 ``VPC_template.json``进行上传**
+> - 点击**下一步**
+> - **指定堆栈详细信息**：
+> * 堆栈名称：**``MyStack123``**
+> - 点击**下一步**
+> - 配置堆栈选项：保持**所有选项为默认**
+> - 点击**下一步**
+> - 审核：查看**配置信息**，并点击**创建堆栈**按钮
+> * 注意：请**等待 CloudFormation 创建资源完成**
+
+image::/图片2/116图片/CloudFormation.png[CloudFormation]
+
+---
+
+=== 验证
+
+> - 顶部菜单**导航到 VPC**
+> - 单击左侧菜单中的**您的 VPC**
+> - 在这里，您可以**看到所有 VPC 的列表**，可以**发现我们刚刚通过 AWS ``CloudFormation`` 设置的 VPC **。示例**屏幕截图**：
+
+image::/图片2/116图片/VPC.png[VPC]
+
+---

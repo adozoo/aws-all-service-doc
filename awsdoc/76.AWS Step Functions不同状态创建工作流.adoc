@@ -1,0 +1,322 @@
+
+## AWS Step Functions不同状态创建工作流
+
+=== Step Functions状态
+
+> - 步骤函数中的**工作流**称为**状态机**。
+> - 在工作流中执行的**各种任务称为状态**。
+> - 有**不同类型的状态**。
+> * 任务状态：任务状态**用于在工作流中执行某些工作**。
+> * 选择状态："选择"状态**根据工作流中的输出做出决策**。
+> * 等待状态："等待"状态会**将工作流中的特定任务延迟一段时间**。
+> * 并行状态：并行状态**并行执行 2 个或更多任务**。
+> * 通过状态：Pass 状态将其**输入传递到其输出**而**不执行工作**。
+> * 成功状态："成功"状态将**成功停止执行**。
+> * 失败状态：失败状态会**停止状态机的执行**，并将其**标记为失败**。
+
+
+=== 架构图
+
+image::/图片/76图片/架构图.png[架构图]
+
+== 实验步骤
+
+=== 工作流程说明
+
+image::/图片/76图片/工作流程说明.png[工作流程说明]
+
+> - 工作流采用**2 个数字（A 和 B）作为输入**，并对其**进行求和**。
+> - 如果总和**大于 10**。如果是，那么我们将**打印 Sum 并结束工作流**。
+> - 如果总和**不大于10**，那么我们将**用1递增每个数字**并**等待10秒**。
+> - 然后，我们将**再次对数字求和并比较数字的总和**。
+> - 该过程将**一直重复**，**直到总和大于 10**。
+> - 在这里，我们使用**任务状态**，**选择状态**，**并行状态**，**等待状态**，**结束状态**等状态。
+
+---
+
+=== 为 Step Functions 创建 IAM 角色
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 导航到**``IAM``**
+> - 在**左侧菜单**中，单击**``角色``** 。单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Step Functions**
+
+image::/图片/75图片/创建IAM.png[创建IAM]
+
+> * 单击**下一步**
+> - 添加权限：**无需更改**。
+> - 单击**下一步**
+> - 角色名称：输入 **``stepFunction_lambda_role``**
+> - 您**已成功**按名称 stepFunction_lambda_role 创建了一个 IAM 角色。
+> * 注意：您可以使用**其他名称创建角色**
+
+---
+
+=== 创建用于执行 Lambda 函数的 IAM 角色
+
+> - 导航到**``IAM``**
+> - 在**左侧菜单**中，单击**``角色``** 。单击**``创建角色``**该按钮以**创建新的 IAM 角色**。
+> - 在创建角色部分，为角色选择**可信实体类型**：
+> * **AWS 服务**
+> * **使用案例:Lambda**
+
+image::/图片/09图片/IAM创建角色2.png[IAM创建角色2]
+
+> * 单击**下一步**
+> - 添加权限：现在，您可以看到**策略列表**。按名称**``AWSLambdaBasicExecutionRole``**搜索权限并添加。
+> - 单击**下一步**
+> - 角色名称：输入 **``lambda_role``**
+> - 您**已成功**按名称 lambda_role 创建了一个 IAM 角色。
+> * 注意：您可以使用**其他名称创建角色**
+
+---
+
+
+=== 创建 Lambda 函数
+
+==== 我们将为本练习创建 5 个简单的 lambda 函数。
+==== 将 Lambda 函数 ARN 保存在本地计算机的记事本中，供以后使用。
+
+> - 确保您位于**美国东部（弗吉尼亚北部）区域**。
+> - 转到菜单，然后单击 **Lambda**。
+
+image::/图片/09图片/导航到Lambda.png[导航到Lambda]
+
+==== Lambda 函数 1：将 2 个数字相加
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``adding_A_and_B``**
+> - 运行时：**``Python 3.9``**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择之前创建的**``lambda_role``**
+> * 点击**创建函数**该按钮。
+> - 函数代码 ：将现有代码**替换为以下内容**，然后单击**"部署"**按钮保存代码。
+
+```py
+  from __future__ import print_function
+  import json
+  print("Loading Function...")
+  def lambda_handler(event, context):
+      value1 = int(event['A'])
+      value2 = int(event['B'])
+      sum_value = value1 + value2
+      returnvalue = {"A" : value1, "B" : value2, "sumAB" : sum_value} 
+      return(returnvalue)
+```
+
+==== Lambda 函数 2：递增 A
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``Increment_A``**
+> - 运行时：**``Python 3.9``**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择之前创建的**``lambda_role``**
+> * 点击**创建函数**该按钮。
+> - 函数代码 ：将现有代码**替换为以下内容**，然后单击**"部署"**按钮保存代码。
+
+```py
+  from __future__ import print_function
+  import json
+  print("Loading Function...")
+  def lambda_handler(event, context):
+      A = event['A']
+      A = A + 1
+      returnvalue = {"A": A}
+      return(returnvalue)
+```
+
+==== Lambda 函数 3：递增 B
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``Increment_B``**
+> - 运行时：**``Python 3.9``**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择之前创建的**``lambda_role``**
+> * 点击**创建函数**该按钮。
+> - 函数代码 ：将现有代码**替换为以下内容**，然后单击**"部署"**按钮保存代码。
+
+```py
+  from __future__ import print_function
+  import json
+  print("Loading Function...")
+  def lambda_handler(event, context):
+      B = event['B']
+      B = B + 1
+      returnvalue = {"B": B}
+      return(returnvalue)
+```
+
+==== Lambda 函数 4：打印总和
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``print_sum``**
+> - 运行时：**``Python 3.9``**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择之前创建的**``lambda_role``**
+> * 点击**创建函数**该按钮。
+> - 函数代码 ：将现有代码**替换为以下内容**，然后单击**"部署"**按钮保存代码。
+
+```py
+  from __future__ import print_function
+  import json
+  print("Loading Function...")
+  def lambda_handler(event, context):
+      print("sum of A and B is {}".format(event['sumAB']))
+      return(event)
+```
+
+==== Lambda 函数 5：格式化输出
+
+> - 单击**创建函数**该按钮。
+> - 选择**``从头开始创建``**
+> - 函数名称：输入 **``format_inputs``**
+> - 运行时：**``Python 3.9``**
+> - 角色：在权限部分中，单击**"更改默认执行角色"**，然后单击**"使用现有角色"**。
+> - 现有角色：选择之前创建的**``lambda_role``**
+> * 点击**创建函数**该按钮。
+> - 函数代码 ：将现有代码**替换为以下内容**，然后单击**"部署"**按钮保存代码。
+
+```py
+  from __future__ import print_function
+  import json
+  print("Loading Function...")
+  def lambda_handler(event, context):
+      returnvalue = {"A":event[0]['A'], "B":event[1]['B']}
+      return(returnvalue)
+```
+
+> - 我们已经创建了所有 5 个**必需的 Lambda 函数**。
+> - 确保您**拥有 Lambda 函数的正确 ARN**。
+
+---
+
+=== 在Step Functions中创建状态机
+
+
+> - 顶部的菜单**导航到Step Functions**，然后单击左侧菜单**状态机**部分。
+> - 点击**创建状态机**按钮。
+> - 选择创作方法：选择**``用代码编写工作流``**
+> - 类型 ： 选择**``标准``**
+> - 定义：将现有的状态机JSON代码**替换为下面的代码**。
+
+```json
+  {
+    "Comment": "An example of the Amazon States Language using different states",
+    "StartAt": "AplusB",
+    "States": {
+      "AplusB": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:us-east-1:065452058517:function:adding_A_and_B",
+        "Next": "CheckAplusB"
+      },
+      "CheckAplusB": {
+        "Type": "Choice",
+        "Choices":[
+          {
+          "Variable" : "$.sumAB",
+          "NumericGreaterThanEquals" : 10,
+          "Next" : "PrintResults"
+          },
+          {
+            "Variable": "$.sumAB",
+            "NumericLessThan": 10,
+            "Next" : "IncrementAB"
+          }
+        ]
+      },
+      "PrintResults": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:us-east-1:065452058517:function:print_sum",
+        "End": true 
+      },
+      "IncrementAB": {
+        "Type": "Parallel",
+        "Next": "FormatInputs",
+        "Branches": [
+          {
+            "StartAt": "IncrementA",
+            "States": {
+              "IncrementA":{
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:us-east-1:065452058517:function:Increment_A",
+                "End": true
+              }
+            }
+          },
+          {
+            "StartAt": "IncrementB",
+            "States": {
+              "IncrementB":{
+                "Type": "Task",
+                "Resource": "arn:aws:lambda:us-east-1:065452058517:function:Increment_B",
+                "End": true
+              }
+            }
+          }
+        ]
+      },
+      "FormatInputs": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:us-east-1:065452058517:function:format_inputs",
+        "Next": "Wait_10_Seconds"
+      },
+      "Wait_10_Seconds": {
+        "Type": "Wait",
+        "Seconds": 10,
+        "Next": "AplusB"
+      }
+    }
+  }
+```
+
+
+> - 现在，将**``Resource``**的值**替换为您复制并放置在文本编辑中的 Lambda ARN**。
+
+==== 注意：确保输入每个任务是**正确 Lambda ARN**。
+
+> - 现在在右侧，**流程图如下**：
+
+image::/图片/76图片/定义.png[定义]
+
+> - 现在点击**下一个**按钮。
+> - 指定**详细信息**：
+> * 名称：输入**``FirstStateMachine``**
+> * 权限：
+> ** 执行角色 ：选择**``选择现有角色``**
+> ** 现有角色 ： 选择**``stepFunction_lambda_role``**
+> * 将**其他内容保留为默认值**。
+> - 单击**创建状态机**按钮。
+
+---
+
+=== 测试Step Functions
+
+> - 单击**启动执行**按钮。
+> - 新执行：
+> * 名称：输入**``Test``**
+> * 输入：我们**必须给出A和B的输入**。
+> ** 在输入中输入 A 和 B 为 1，**如下所示**。
+
+image::/图片/76图片/输入.png[输入]
+
+> - 单击**启动执行**按钮。
+> - 在图形检查器图中，可以查看**状态机的工作流**。任务的颜色将**变为绿色（成功）**，如下图所示。
+
+image::/图片/76图片/成功.png[成功]
+
+> - 单击**每个任务以了解有关它们的更多信息**。您将能够在**右侧看到更多详细信息**。
+> - 现在，单击右侧的**"步骤输出"**选项卡，您将看到**Lambda 函数的输出**。
+
+image::/图片/76图片/检查.png[检查]
+
+> - 可以在下面的**执行事件历史记录**中**监视工作流的实时执行**。
+
+image::/图片/76图片/历史记录.png[历史记录]
+
+---
